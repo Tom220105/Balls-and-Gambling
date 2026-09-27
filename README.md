@@ -21,7 +21,9 @@ Every time something new is pushed to `main`, the page updates by itself after a
 
 ## Play on a phone or tablet
 
-The game works upright and sideways. The controls change to touch by themselves:
+On the first start the game asks: **PC, PHONE or TABLET?** It then sets up the camera, the graphics and the controls for that device. You can change it later in **Settings > Playing on**.
+
+The game works upright and sideways. On a phone or tablet the controls are:
 
 | Mode | Touch controls |
 | --- | --- |

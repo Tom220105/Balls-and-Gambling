@@ -5,7 +5,7 @@
    without internet (on the bus, in flight mode ...).
    Change CACHE when files are renamed or removed, so old copies get cleared.
    ========================================================================== */
-const CACHE = 'neon-sigil-v1';
+const CACHE = 'neon-sigil-v2';
 
 const FILES = [
   './',
