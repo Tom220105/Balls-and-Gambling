@@ -1,0 +1,160 @@
+/* NEON SIGIL — phones & tablets
+   Touch hints, the pause button, the Funky Balls touch buttons and layout
+   fixes for small screens. body.touch and body.no-fs come from js/mobil.js. */
+
+/* ---------------------------------------------------------------- basics */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+img { -webkit-user-drag: none; -webkit-touch-callout: none; }
+/* fast taps on buttons must not zoom the page (iOS double-tap zoom) */
+button, input, label, a { touch-action: manipulation; }
+
+/* keyboard hints on PC, touch hints on phones */
+body:not(.touch) .touch-only { display: none !important; }
+body.touch .kb-only { display: none !important; }
+body.touch .mode-key { display: none; }
+/* no mouse to capture on a touch screen, and iPhones have no fullscreen */
+body.touch #btn-cursor, body.no-fs #btn-fullscreen { display: none; }
+body.touch .sys-btn { opacity: 0.8; }
+
+/* pause button: only while a run is going */
+#btn-pause { display: none; }
+body.playing #btn-pause { display: grid; }
+
+/* ------------------------------------------ Funky Balls: FAST / RECALL */
+.touch-bar {
+  position: fixed;
+  right: 14px;
+  bottom: 16px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.touch-bar button {
+  min-width: 108px;
+  padding: 12px 14px;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  color: #fff;
+  cursor: pointer;
+  border: 1px solid var(--lime);
+  background: rgba(4, 2, 13, 0.82);
+  box-shadow: inset 0 0 12px rgba(141, 255, 42, 0.25);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+.touch-bar button.on { color: #04020d; background: var(--lime); }
+.touch-bar button:active { filter: brightness(1.4); }
+
+/* ---------------------------------------------- phone held upright */
+@media (orientation: portrait) {
+  /* the arena fills the whole width: the system buttons move up next to the HUD */
+  body.playing #sys-bar { top: 128px; transform: none; }
+  body.touch #fb-speed { bottom: 140px; }
+}
+
+@media (max-width: 520px) {
+  /* RPG battle: wave info on the left, speed buttons on the right */
+  .mb-top { left: 8px; transform: none; gap: 10px; padding: 6px 10px; background: rgba(4, 2, 13, 0.8); }
+  .mb-stage { display: none; }
+  .mb-wave { font-size: 14px; letter-spacing: 0.1em; }
+  .mb-speed { right: 8px; top: 10px; padding: 3px; }
+  .mb-speed span { display: none; }
+  .mb-speed button { min-width: 34px; padding: 6px; }
+  .mb-hint { padding: 0 10px; }
+  /* Neon Bubbles: the "?" moves down so it doesn't cover the goal counter */
+  .bb-top { gap: 8px; padding: 6px 10px; }
+  .bb-bar { width: 110px; }
+  .bb-help { top: auto; bottom: 14px; right: 14px; }
+}
+
+/* ------------------------------------------- phone held sideways */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* keep menus clear of the system buttons on the left */
+  .screen { padding-left: 62px; }
+  .title-panel { padding: 12px 24px; }
+  .title-panel .title-wallet { margin: 0 0 4px; }
+  .title-panel h1 { margin: 4px 0; font-size: 42px; }
+  .title-panel .tagline { display: none; }
+  .title-panel .btn { padding: 10px 18px; }
+  .title-panel .menu-row { margin-top: 8px; }
+  .title-panel .loadout { margin-top: 8px; }
+  .title-panel .hi { margin-top: 6px; }
+  /* mode select: three small cards per row instead of one big card */
+  .mode-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; padding: 10px 2px; }
+  .mode-card { min-height: auto; padding: 12px 10px; gap: 6px; }
+  .mode-icon { transform: scale(0.6); margin: -22px 0 -20px; }
+  .mode-card h3 { font-size: 16px; }
+  .mode-card p { font-size: 11px; line-height: 1.35; }
+
+  /* menus: header in one row and the side-by-side layouts from the PC */
+  .menu-panel { padding: 10px 14px; }
+  .menu-head { grid-template-columns: auto 1fr auto; gap: 10px; }
+  .menu-head .wallet { grid-column: auto; justify-self: end; }
+  .menu-head h2 { font-size: 22px; }
+  .coll { grid-template-columns: 1fr 270px; grid-template-rows: none; }
+  .coll-detail { order: 0; overflow-y: auto; }
+  .coll-preview { flex: 1; height: auto; min-height: 90px; }
+  .coll-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .skills, .plinko { grid-template-columns: 1fr 260px; grid-template-rows: none; overflow-y: visible; margin-top: 8px; }
+  .skill-map, .plinko-board { min-height: 0; }
+  .plinko-side { overflow-y: auto; }
+  .lot-hub { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 4px; }
+  .lot-hub .hub-card { min-height: auto; padding: 12px; gap: 6px; }
+  .box-offers { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .offer img { max-width: 120px; }
+  /* Neon Bubbles: tutorial and result cards must fit the low screen */
+  .bb-tut-panel, .bb-res-panel, .bm-card, .sd-card { max-height: calc(100% - 16px); overflow-y: auto; }
+  .bb-tut-panel { width: min(600px, 80vw); gap: 6px; padding: 12px 18px; }
+  .bb-tut-img { width: 76px; height: 76px; }
+  .bb-tut-img img { width: 86px; height: 86px; }
+  .bb-tut-card h3 { font-size: 18px; }
+  .bb-tut-card p { max-width: 60ch; font-size: 12px; line-height: 1.4; }
+  /* Black Jack: table on the left, chips and buttons on the right */
+  #lot-bj { flex-direction: row; gap: 10px; margin-top: 8px; }
+  .bj-table { padding: 8px; }
+  .bj-row { gap: 4px; }
+  .bj-hand { min-height: 94px; }
+  .bj-rules { font-size: 8px; letter-spacing: 0.1em; }
+  .bj-controls { flex: 0 0 220px; align-items: center; }
+  .chip { width: 46px; height: 46px; font-size: 11px; }
+
+  /* RPG hub: header in one row, loot + buttons + battle in one low row */
+  .rpg-top { grid-template-columns: 1fr auto 1fr; padding: 8px 14px 14px; }
+  .rpg-wallets { grid-column: auto; justify-self: end; }
+  .rpg-kicker { display: none; }
+  .hub-plate { top: 58px; }
+  .run-stats { top: 92px; }
+  .rpg-dock { left: 62px; right: 12px; bottom: 10px; grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr); gap: 10px; }
+  .afk-chest { grid-column: auto; gap: 4px; padding: 8px 12px; }
+  .afk-head b { font-size: 18px; }
+  .afk-loot { font-size: 13px; }
+  .afk-rate { display: none; }
+  .dock-mid { gap: 6px; }
+  .dock-btn { min-width: 0; padding: 9px 12px; }
+  .battle-btn { padding: 8px 14px; }
+  .battle-btn .bb-label { font-size: 20px; }
+  .form-panel { left: 62px; }
+  /* RPG heroes: list on the left, details on the right (like on PC) */
+  .hero-roster-wrap { left: 62px; right: calc(50% + 4px); top: 58px; bottom: 10px; display: flex; flex-direction: column; }
+  .hero-roster { flex: 1; min-height: 0; max-height: none; align-content: flex-start; }
+  .hero-roster-head { font-size: 8px; letter-spacing: 0.15em; }
+  .hero-panel { left: calc(50% + 4px); right: 10px; top: 58px; bottom: 10px; width: auto; max-height: none; }
+
+  /* RPG battle: hero cards 2 x 2 in the free space left of the arena */
+  .mb-bottom { left: 62px; bottom: 8px; transform: none; align-items: flex-start; gap: 6px; }
+  .mb-team { display: grid; grid-template-columns: repeat(2, auto); gap: 6px; }
+  .mbh { width: 64px; height: 74px; }
+  .mbh img { width: 68px; height: 68px; }
+  .mbh-type { padding: 1px 4px 1px 6px; font-size: 7px; letter-spacing: 0; }
+  .mbh.active { transform: translateX(6px); }
+  .mb-hpbar { width: 134px; grid-template-columns: 1fr; gap: 2px; }
+  .mb-hp-label { font-size: 8px; }
+  .mb-hp-text { font-size: 11px; }
+}

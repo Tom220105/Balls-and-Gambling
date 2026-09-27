@@ -2409,7 +2409,9 @@
     if (boss) $('mb-boss-fill').style.width = (100 * Math.max(0, boss.hp) / boss.maxHp).toFixed(1) + '%';
     const h = cur;
     let hint = `<b>${h.def.name}</b> · <span class="ty" style="color:${h.ty.css}">${h.ty.icon} ${h.ty.name} · SPD ${h.spd}</span> — ${h.ty.text} · DRAG BACK &amp; RELEASE`;
-    if (h.charge <= 0) hint += ' · <span class="key">H</span> ' + (st.hyperArmed ? '<b class="hy">HYPER ARMED — ' + h.def.hyper.name + '</b>' : 'ARM HYPER');
+    // touch screens (js/mobil.js sets body.touch) arm HYPER by tapping the hero card
+    const hyKey = document.body.classList.contains('touch') ? '<span class="key">TAP CARD</span> ' : '<span class="key">H</span> ';
+    if (h.charge <= 0) hint += ' · ' + hyKey + (st.hyperArmed ? '<b class="hy">HYPER ARMED — ' + h.def.hyper.name + '</b>' : 'ARM HYPER');
     $('mb-hint').innerHTML = st.phase === 'aim' ? hint : st.phase === 'enemy' ? 'ENEMY TURN' : '';
   }
 

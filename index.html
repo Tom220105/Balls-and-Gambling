@@ -4,6 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Neon Sigil</title>
+  <meta name="description" content="Cyber brick breaker with Funky Balls, an RPG, Neon Bubbles and the Cyber-Lottery. Runs in the browser on PC, tablet and phone.">
+  <!-- phones: add to home screen = fullscreen app (manifest.webmanifest, js/mobil.js) -->
+  <meta name="theme-color" content="#04020d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Neon Sigil">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap">
@@ -12,6 +22,7 @@
   <link rel="stylesheet" href="css/rpg.css">
   <link rel="stylesheet" href="css/bubbles.css">
   <link rel="stylesheet" href="css/settings.css">
+  <link rel="stylesheet" href="css/mobil.css">
 </head>
 <body>
   <div id="stage"></div>
@@ -68,8 +79,13 @@
     </div>
   </div>
   <div id="fb-count" class="hidden">&times;10</div>
-  <div id="fb-hint" class="hidden"><span class="key">MOUSE</span> aim &nbsp; <span class="key">CLICK</span> fire &nbsp; <span class="key">DRAG RAIL</span> / <span class="key">A D</span> move gun &nbsp; <span class="key">&larr; &rarr;</span> fine aim &nbsp; <span class="key">F</span> fast-forward &nbsp; <span class="key">R</span> recall</div>
+  <div id="fb-hint" class="hidden"><span class="kb-only"><span class="key">MOUSE</span> aim &nbsp; <span class="key">CLICK</span> fire &nbsp; <span class="key">DRAG RAIL</span> / <span class="key">A D</span> move gun &nbsp; <span class="key">&larr; &rarr;</span> fine aim &nbsp; <span class="key">F</span> fast-forward &nbsp; <span class="key">R</span> recall</span><span class="touch-only"><span class="key">DRAG</span> aim &nbsp; <span class="key">LET GO</span> fire &nbsp; <span class="key">DRAG RAIL</span> move gun &nbsp; <span class="key">TAP</span> fast-forward</span></div>
   <div id="fb-speed" class="hidden"></div>
+  <!-- Funky Balls on a touch screen: the F and R keys as buttons -->
+  <div id="fb-touch" class="touch-bar touch-only hidden">
+    <button id="fb-ff">&#9193; FAST</button>
+    <button id="fb-recall">&#10226; RECALL</button>
+  </div>
   <!-- RPG marble battle HUD (js/rpg-kampf.js) -->
   <div id="mb-labels" class="hidden"></div>
   <div id="mb-hud" class="hidden">
@@ -110,9 +126,9 @@
     <div class="bb-boss hidden" id="bb-boss"><span>&#9760; SENTINEL</span><i><b id="bb-boss-fill"></b></i></div>
     <button class="bb-help" id="bb-help" title="What does what in this level? (H)">?</button>
     <div class="bb-shots" id="bb-shots"><b id="bb-shots-n">20</b><span>SHOTS</span></div>
-    <div class="bb-next" id="bb-next-lbl">NEXT &middot; <span class="key">S</span></div>
+    <div class="bb-next" id="bb-next-lbl">NEXT <span class="kb-only">&middot; <span class="key">S</span></span><span class="touch-only">&middot; TAP</span></div>
     <div class="bb-surge"><span>SURGE</span><i><b id="bb-surge-fill"></b></i></div>
-    <div class="bb-hint hidden" id="bb-hint"><span class="key">MOUSE</span> aim &nbsp; <span class="key">CLICK</span> shoot &nbsp; <span class="key">S</span> / <span class="key">RIGHT-CLICK</span> swap &nbsp;&middot;&nbsp; match <b>3+</b> of a colour &middot; bank shots off the walls</div>
+    <div class="bb-hint hidden" id="bb-hint"><span class="kb-only"><span class="key">MOUSE</span> aim &nbsp; <span class="key">CLICK</span> shoot &nbsp; <span class="key">S</span> / <span class="key">RIGHT-CLICK</span> swap &nbsp;&middot;&nbsp; </span><span class="touch-only"><span class="key">DRAG</span> aim &nbsp; <span class="key">LET GO</span> shoot &nbsp; <span class="key">TAP NEXT</span> swap<br></span>match <b>3+</b> of a colour &middot; bank shots off the walls</div>
     <div class="bb-tut hidden" id="bb-tut">
       <div class="bb-tut-panel">
         <div class="bb-tut-kicker" id="bb-tut-kicker">NEW IN THIS LEVEL</div>
@@ -153,7 +169,7 @@
       <div class="fbc-slots" id="fbc-slots"></div>
     </div>
     <div class="fbc-row" id="fbc-row"></div>
-    <div class="fbc-foot">CLICK A CARD OR PRESS <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> &nbsp;&middot;&nbsp; CARDS LEVEL UP TO III &nbsp;&middot;&nbsp; MORE SLOTS IN THE SKILL TREE &nbsp;&middot;&nbsp; ALL SLOTS MAXED &rarr; EVERY LEVEL-UP GIVES +1 BALL</div>
+    <div class="fbc-foot"><span class="kb-only">CLICK A CARD OR PRESS <span class="key">1</span> <span class="key">2</span> <span class="key">3</span></span><span class="touch-only">TAP A CARD</span> &nbsp;&middot;&nbsp; CARDS LEVEL UP TO III &nbsp;&middot;&nbsp; MORE SLOTS IN THE SKILL TREE &nbsp;&middot;&nbsp; ALL SLOTS MAXED &rarr; EVERY LEVEL-UP GIVES +1 BALL</div>
   </div>
   <div id="mute-ind" class="hidden">SOUND OFF</div>
   <div id="fps" class="hidden">0 FPS</div>
@@ -162,6 +178,9 @@
 
   <!-- settings, fullscreen + cursor capture (js/einstellungen.js, js/spiel.js) -->
   <div id="sys-bar">
+    <button id="btn-pause" class="sys-btn" title="Pause (P)" aria-label="Pause">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+    </button>
     <button id="btn-settings-sys" class="sys-btn" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M10.3 2.5h3.4l.5 2.6 1.9 1.1 2.5-.9 1.7 3-2 1.7v2.2l2 1.7-1.7 3-2.5-.9-1.9 1.1-.5 2.6h-3.4l-.5-2.6-1.9-1.1-2.5.9-1.7-3 2-1.7v-2.2l-2-1.7 1.7-3 2.5.9 1.9-1.1z"/></svg>
     </button>
@@ -187,17 +206,22 @@
       <div class="help-grid">
         <div class="help-card" style="--hc:#19e6ff">
           <h3>CLASSIC &amp; SURVIVAL</h3>
-          <div class="help-row"><span class="key">MOUSE</span><span class="key">&larr; &rarr;</span><span class="key">A D</span><em>move the bouncepad</em></div>
-          <div class="help-row"><span class="key">CLICK</span><span class="key">SPACE</span><em>launch / release a caught ball</em></div>
+          <div class="help-row kb-only"><span class="key">MOUSE</span><span class="key">&larr; &rarr;</span><span class="key">A D</span><em>move the bouncepad</em></div>
+          <div class="help-row kb-only"><span class="key">CLICK</span><span class="key">SPACE</span><em>launch / release a caught ball</em></div>
+          <div class="help-row touch-only"><span class="key">DRAG</span><em>move the bouncepad (anywhere on the screen)</em></div>
+          <div class="help-row touch-only"><span class="key">TAP</span><em>launch / release a caught ball</em></div>
           <p>Where the ball hits the pad decides its angle. Survival: 1 ball + 2 spares, the wall creeps down.</p>
         </div>
         <div class="help-card" style="--hc:#8dff2a">
           <h3>FUNKY BALLS</h3>
-          <div class="help-row"><span class="key">MOUSE</span><em>aim the Cybergun</em></div>
-          <div class="help-row"><span class="key">CLICK</span><span class="key">SPACE</span><em>fire the whole volley</em></div>
-          <div class="help-row"><span class="key">DRAG RAIL</span><span class="key">A D</span><em>slide the gun</em></div>
-          <div class="help-row"><span class="key">&larr; &rarr;</span><em>fine aim</em><span class="key">F</span><em>fast-forward</em><span class="key">R</span><em>recall</em></div>
-          <p>Break numbered bricks before they reach the line. Grab <b>+1</b> orbs for more balls. Destroyed bricks give <b>XP</b>: every level-up lets you pick a perk card (<b>1 2 3</b>).</p>
+          <div class="help-row kb-only"><span class="key">MOUSE</span><em>aim the Cybergun</em></div>
+          <div class="help-row kb-only"><span class="key">CLICK</span><span class="key">SPACE</span><em>fire the whole volley</em></div>
+          <div class="help-row kb-only"><span class="key">DRAG RAIL</span><span class="key">A D</span><em>slide the gun</em></div>
+          <div class="help-row kb-only"><span class="key">&larr; &rarr;</span><em>fine aim</em><span class="key">F</span><em>fast-forward</em><span class="key">R</span><em>recall</em></div>
+          <div class="help-row touch-only"><span class="key">DRAG</span><em>aim the Cybergun</em><span class="key">LET GO</span><em>fire the volley</em></div>
+          <div class="help-row touch-only"><span class="key">DRAG RAIL</span><em>slide the gun (touch near the gun)</em></div>
+          <div class="help-row touch-only"><span class="key">FAST</span><span class="key">RECALL</span><em>buttons while the balls fly</em></div>
+          <p>Break numbered bricks before they reach the line. Grab <b>+1</b> orbs for more balls. Destroyed bricks give <b>XP</b>: every level-up lets you pick a perk card<span class="kb-only"> (<b>1 2 3</b>)</span>.</p>
         </div>
         <div class="help-card" style="--hc:#ff3cf2">
           <h3>POWER-UPS</h3>
@@ -218,23 +242,30 @@
         </div>
         <div class="help-card" style="--hc:#a9b8d0">
           <h3>GENERAL</h3>
-          <div class="help-row"><span class="key">P</span><span class="key">ESC</span><em>pause / back</em></div>
-          <div class="help-row"><span class="key">M</span><em>sound on / off</em></div>
-          <div class="help-row"><span class="key">&#9974;</span><em>fullscreen</em><span class="key">CURSOR</span><em>off = mouse captured while playing, ESC frees it</em></div>
-          <div class="help-row"><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span><span class="key">5</span><em>pick a mode on the mode screen</em></div>
+          <div class="help-row kb-only"><span class="key">P</span><span class="key">ESC</span><em>pause / back</em></div>
+          <div class="help-row kb-only"><span class="key">M</span><em>sound on / off</em></div>
+          <div class="help-row kb-only"><span class="key">&#9974;</span><em>fullscreen</em><span class="key">CURSOR</span><em>off = mouse captured while playing, ESC frees it</em></div>
+          <div class="help-row kb-only"><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span><span class="key">5</span><em>pick a mode on the mode screen</em></div>
+          <div class="help-row touch-only"><span class="key">&#10074;&#10074;</span><em>pause button on the left while you play</em></div>
+          <div class="help-row touch-only"><span class="key">&#9974;</span><em>fullscreen (if your browser can do it)</em></div>
           <div class="help-row"><span class="key">&#9881;</span><em>settings: volume, graphics, shake, damage numbers, reset game</em></div>
+          <p class="touch-only">Tip: in your browser menu pick <b>Add to Home Screen</b>. Then the game opens fullscreen like an app.</p>
         </div>
         <div class="help-card" style="--hc:#9a5cff">
           <h3>NEON BUBBLES</h3>
-          <div class="help-row"><span class="key">MOUSE</span><span class="key">&larr; &rarr;</span><em>aim</em><span class="key">CLICK</span><span class="key">SPACE</span><em>shoot</em></div>
-          <div class="help-row"><span class="key">S</span><span class="key">RIGHT-CLICK</span><em>swap with the next bubble</em></div>
-          <div class="help-row"><span class="key">H</span><span class="key">?</span><em>explain everything in the current level</em></div>
+          <div class="help-row kb-only"><span class="key">MOUSE</span><span class="key">&larr; &rarr;</span><em>aim</em><span class="key">CLICK</span><span class="key">SPACE</span><em>shoot</em></div>
+          <div class="help-row kb-only"><span class="key">S</span><span class="key">RIGHT-CLICK</span><em>swap with the next bubble</em></div>
+          <div class="help-row kb-only"><span class="key">H</span><span class="key">?</span><em>explain everything in the current level</em></div>
+          <div class="help-row touch-only"><span class="key">DRAG</span><em>aim</em><span class="key">LET GO</span><em>shoot</em></div>
+          <div class="help-row touch-only"><span class="key">TAP NEXT</span><em>swap with the next bubble</em></div>
+          <div class="help-row touch-only"><span class="key">?</span><em>explain everything in the current level</em></div>
           <p>Match <b>3+</b> of a colour to pop them; whatever hangs on nothing drops into the data sinks (&times;1&ndash;&times;3). Two paths: <b>CLASSIC</b> teaches one new thing at a time (with a tutorial card), <b>HARD</b> opens after the first boss. Every 10th level the <b>Sentinel</b> fights back.</p>
         </div>
         <div class="help-card" style="--hc:#ffc933">
           <h3>RPG</h3>
           <div class="help-row"><span class="key">DRAG BACK</span><span class="key">RELEASE</span><em>sling the active hero</em></div>
-          <div class="help-row"><span class="key">H</span><em>arm HYPER</em><span class="key">&larr; &rarr;</span><span class="key">SPACE</span><em>aim / sling</em><span class="key">F</span><em>speed 1&times; / 2&times; / 3&times;</em></div>
+          <div class="help-row kb-only"><span class="key">H</span><em>arm HYPER</em><span class="key">&larr; &rarr;</span><span class="key">SPACE</span><em>aim / sling</em><span class="key">F</span><em>speed 1&times; / 2&times; / 3&times;</em></div>
+          <div class="help-row touch-only"><span class="key">TAP HERO CARD</span><em>arm HYPER</em><span class="key">SPEED</span><em>1&times; / 2&times; / 3&times; buttons</em></div>
           <p><b style="color:#19e6ff">&#10226; BOUNCE</b> heroes rebound off enemies, <b style="color:#ff8a1f">&#10148; PIERCE</b> heroes smash through them. Touch your own heroes to fire their <b>combos</b>. Enemies attack when their countdown hits 0.</p>
         </div>
       </div>
@@ -589,7 +620,7 @@
           </div>
           <button class="btn gold" id="cr-go">&#9650; TAKE OFF</button>
           <div class="pk-history" id="cr-history"></div>
-          <div class="pk-note"><span class="key">SPACE</span> takes off and cashes out. Leave the runway only after cashing out.</div>
+          <div class="pk-note"><span class="kb-only"><span class="key">SPACE</span> takes off and cashes out. </span>Leave the runway only after cashing out.</div>
         </aside>
       </div>
 
@@ -684,7 +715,7 @@
   <section id="screen-pause" class="screen hidden">
     <div class="panel small">
       <h2 class="glitch" data-text="PAUSED">PAUSED</h2>
-      <p class="tagline">Press <span class="key">P</span> or click to resume</p>
+      <p class="tagline"><span class="kb-only">Press <span class="key">P</span> or click to resume</span><span class="touch-only">Tap to resume</span></p>
       <button id="btn-resume" class="btn">&#9654; RESUME</button>
       <button id="btn-pause-settings" class="btn ghost">&#9881; SETTINGS</button>
       <button id="btn-quit" class="btn ghost">ABORT RUN</button>
@@ -725,6 +756,7 @@
   <script src="js/lib/UnrealBloomPass.js"></script>
   <script src="js/lib/RoundedBoxGeometry.js"></script>
   <script src="js/lib/Reflector.js"></script>
+  <script src="js/mobil.js"></script>
   <script src="js/profil.js"></script>
   <script src="js/modelle.js"></script>
   <script src="js/spiel.js"></script>
