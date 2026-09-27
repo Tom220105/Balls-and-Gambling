@@ -1091,6 +1091,7 @@
       }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setClearColor(0x000000, 0);
+      renderer.debug.checkShaderErrors = false;   // no waiting for the driver (see js/spiel.js warmUp)
       // no bloom here, so tone-map instead to keep bright cores from clipping to flat white
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.35;
@@ -1133,6 +1134,7 @@
         renderer.toneMappingExposure = prog.exposure || 1.35;   // a program may ask for more light
         container.appendChild(renderer.domElement);
         fit();
+        renderer.compile(prog.scene, prog.camera);   // all its shaders at once, hidden effects included
         if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); }
         return true;
       },

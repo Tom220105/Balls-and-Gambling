@@ -33,8 +33,8 @@
     { k: 'fpsCap', label: 'FPS', hint: 'Frames per second. 30 saves battery, UNLIMITED uses the full speed of your screen', type: 'choice',
       options: [['30', '30'], ['60', '60'], ['max', 'UNLIMITED']] },
     { k: 'quality', label: 'Render quality', hint: () => (isTouch()
-      ? 'AUTO is sharp and smooth and lowers the resolution by itself when the game lags. HIGH uses the full sharpness of your screen'
-      : 'AUTO lowers the resolution by itself when the frame rate drops'), type: 'choice',
+      ? 'AUTO is sharp and smooth and makes the picture cheaper by itself when the game lags. HIGH: full sharpness. LOW: fastest, no neon reflections'
+      : 'AUTO lowers the resolution by itself when the frame rate drops. LOW: fastest, no neon reflections'), type: 'choice',
       options: [['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MEDIUM'], ['low', 'LOW']] },
     { k: 'bloom', label: 'Neon glow', hint: 'Bloom strength — 0 switches it off', type: 'slider', max: 150, unit: '%' },
     { k: 'reflect', label: 'Mirror floor', hint: 'Reflections on the arena floor (always off on LOW)', type: 'toggle' },

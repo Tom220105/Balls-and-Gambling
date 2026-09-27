@@ -23,6 +23,7 @@
     || !NEON.models || !NEON.profile) {
     $('load-error').classList.remove('hidden');
     $('screen-title').classList.add('hidden');
+    $('loading').remove();
     return;
   }
   const P = NEON.profile;
@@ -260,6 +261,9 @@
   // ======================================================= renderer & scene
   const stage = $('stage');
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  // Checking every shader right after compiling makes the browser wait for the graphics driver.
+  // Without the check many shaders compile side by side (warmUp). ?debug turns it back on.
+  renderer.debug.checkShaderErrors = new URLSearchParams(location.search).has('debug');
   // the device the player picked on the first start (js/mobil.js): 'pc' | 'phone' | 'tablet'
   const platform = () => NEON.platform || (NEON.mobile ? 'phone' : 'pc');
   const handheld = () => platform() !== 'pc';
@@ -381,10 +385,19 @@
   composer.addPass(finalPass);
 
   // neon environment map: every metal / glossy surface reflects the club lights
+  let envMap = null;
   {
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(MODELS.envScene(), 0.04).texture;
+    envMap = pmrem.fromScene(MODELS.envScene(), 0.04).texture;
     pmrem.dispose();
+    scene.environment = settings.quality === 'low' ? null : envMap;
+  }
+  // Reflections of the neon lights on metal and glass: about a fifth of the render work on a phone.
+  // LOW quality switches them off, and AUTO does too when a phone or tablet can't keep up.
+  function setReflections(on) {
+    if (!!scene.environment === on) return;
+    scene.environment = on ? envMap : null;
+    warmUp();   // every lit material needs a new shader: build them all now, in one go
   }
 
   // lights
@@ -3356,6 +3369,7 @@
       EXT[mode]().start(extOpts);
       extOpts = null;
       frameCamera();   // every mode has its own HUD height
+      warmUp();
       requestLock();
       return;
     }
@@ -3363,6 +3377,7 @@
     if (mode === 'survival') loadSurvival();
     else loadLevel(DEBUG.level);
     frameCamera();
+    warmUp();
     requestLock();
   }
 
@@ -4060,6 +4075,15 @@
     camera.lookAt(lookTarget);
   }
 
+  // Shader warm-up. WebGL builds the shader for a kind of material the first time an object with
+  // it is drawn, and the game freezes for that moment (worst on phones: the first explosion, the
+  // first drag of the aim line). renderer.compile builds them for every object in the scene,
+  // hidden ones included (effects waiting in their pools), so it all happens at once: behind
+  // the loading screen and when a mode starts.
+  function warmUp() {
+    renderer.compile(scene, camera);
+  }
+
   // ============================================================== resize
   // PC: the classic camera; the view only widens on narrow (portrait) windows so both
   // walls stay visible. The near edge of the platform is the widest thing on screen, so fit that.
@@ -4186,7 +4210,7 @@
   // is unlimited), make the picture cheaper in steps. PC reacts below about 45 FPS: lower the
   // render resolution first (down to 1x), then switch the mirror floor off. Phones and tablets
   // react a little earlier: the mirror floor goes first, then the resolution in small steps
-  // down to 1.5x (1.25x only when the game really stutters).
+  // (below 1.75x the neon reflections go first), down to 1.5x (1.25x when the game really stutters).
   function monitorQuality(realDt) {
     if (DEBUG.hq || settings.quality !== 'auto' || menuOpen || document.hidden || realDt > 0.25) return;
     quality.acc += realDt;
@@ -4201,6 +4225,11 @@
     if (hh && reflector && quality.reflect) {
       quality.reflect = false;
       reflector.visible = false;
+      return;
+    }
+    // phones and tablets: below 1.75x the neon reflections go before the resolution drops further
+    if (hh && quality.pr <= 1.76 && scene.environment) {
+      setReflections(false);
       return;
     }
     const floor = hh ? Math.min(maxPr(), avg > target * 1.6 ? 1.25 : 1.5) : 1;
@@ -4221,6 +4250,7 @@
       quality.pr = qualityPr(settings.quality);
       quality.reflect = settings.reflect && settings.quality !== 'low';
       if (reflector) reflector.visible = quality.reflect;
+      setReflections(settings.quality !== 'low');
       resize();
     } else if (k === 'fps') $('fps').classList.toggle('hidden', !settings.fps);
     else if (k === 'fpsCap') { quality.acc = 0; quality.frames = 0; }   // measure again at the new rate
@@ -4278,7 +4308,7 @@
 
   // engine services for js/funky.js (Funky Balls reuses the arena, FX, audio and HUD plumbing)
   NEON.core = {
-    scene, camera, refCam,
+    scene, camera, refCam, renderer,
     K: { HALF_W, TOP_Z, PADDLE_Z, BALL_R, CHIN, BOTTOM_Z, WALL_H, EXTRA: ARENA_EXTRA },
     COL,
     emit, burst, spawnRing, spawnDebris, flashLight, addShake, popup, showBanner, noReflect, lightning,
@@ -4355,8 +4385,20 @@
   function boot() {
     if (DEBUG.autostart) startGame(DEBUG.mode);
     for (let t = 0; t < DEBUG.warp; t += 1 / 60) tick(1 / 60);
-    last = performance.now();
-    requestAnimationFrame(frame);
+    // loading screen: build every shader now instead of freezing later in the game
+    $('ld-text').textContent = 'COMPILING SHADERS';
+    $('ld-fill').style.width = '70%';
+    requestAnimationFrame(() => {
+      warmUp();
+      composer.render();   // the first frame waits until the graphics driver has finished them
+      $('ld-fill').style.width = '100%';
+      requestAnimationFrame(() => {
+        $('loading').classList.add('done');
+        setTimeout(() => $('loading').remove(), 400);
+        last = performance.now();
+        requestAnimationFrame(frame);
+      });
+    });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
@@ -4374,8 +4416,9 @@
     if (occluded) return;
     tick(dt);
     monitorQuality(realDt);
-    // while a menu covers the arena, draw it at half rate to leave GPU time for the previews
-    if (menuOpen) { skip = !skip; if (skip) return; }
+    // title screen, menus and pause: draw at half rate. Leaves GPU time for the menu previews
+    // and keeps phones cool (a hot phone slows itself down, then the game lags)
+    if (menuOpen || game.demo || game.paused) { skip = !skip; if (skip) return; }
     finalPass.uniforms.uTime.value = time;
     finalPass.uniforms.uGlitch.value = game.glitch;
     // small screens look darker: phones and tablets get more light and a softer vignette,
