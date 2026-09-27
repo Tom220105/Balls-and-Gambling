@@ -43,6 +43,34 @@ body.playing[data-mode="marble"] #stage, body.playing[data-mode="funky"] #stage 
 
 .hidden { display: none !important; }
 
+/* loading screen (index.html #loading, removed by js/spiel.js once the shaders are built) */
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: radial-gradient(ellipse at center, #120830 0%, var(--bg) 70%);
+  transition: opacity 0.35s;
+}
+.loading.done { opacity: 0; pointer-events: none; }
+.ld-title {
+  font-family: var(--font-head);
+  font-weight: 900;
+  font-size: clamp(30px, 7vw, 56px);
+  line-height: 1.05;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255, 60, 242, 0.75), 0 0 40px rgba(166, 77, 255, 0.5);
+}
+.ld-bar { width: min(260px, 70vw); height: 6px; overflow: hidden; border: 1px solid rgba(25, 230, 255, 0.5); }
+.ld-bar i { display: block; width: 30%; height: 100%; background: linear-gradient(90deg, var(--magenta), var(--cyan)); box-shadow: 0 0 10px var(--cyan); transition: width 0.3s; }
+.ld-text { font-family: var(--font-head); font-size: 11px; letter-spacing: 0.4em; color: var(--dim); }
+
 /* ------------------------------------------------------------------ HUD */
 
 #hud {

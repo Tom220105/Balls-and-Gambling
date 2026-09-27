@@ -5,7 +5,7 @@
    without internet (on the bus, in flight mode ...).
    Change CACHE when files are renamed or removed, so old copies get cleared.
    ========================================================================== */
-const CACHE = 'balls-gambling-v5';
+const CACHE = 'balls-gambling-v6';
 
 const FILES = [
   './',
