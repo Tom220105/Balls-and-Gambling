@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Neon Sigil</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/menues.css">
+  <link rel="stylesheet" href="css/rpg.css">
+  <link rel="stylesheet" href="css/bubbles.css">
+  <link rel="stylesheet" href="css/settings.css">
+</head>
+<body>
+  <div id="stage"></div>
+
+  <!-- in-game HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-block hud-left">
+      <div class="label">SCORE</div>
+      <div class="value" id="score">0000000</div>
+      <div class="chain" id="chain"></div>
+    </div>
+    <div class="hud-block hud-center">
+      <div class="label" id="sector">SECTOR 01</div>
+      <div class="value small" id="sector-name">FIREWALL</div>
+      <div id="boss" class="boss hidden">
+        <div class="boss-label"><span id="boss-name">SENTINEL</span> <span id="boss-hp-text"></span></div>
+        <div class="boss-bar"><div id="boss-fill"></div></div>
+      </div>
+    </div>
+    <div class="hud-block hud-right">
+      <div class="label">HI-SCORE</div>
+      <div class="value" id="hiscore">0000000</div>
+      <div class="lives" id="lives"></div>
+      <div class="hud-coins"><i class="coin-icon"></i><span id="hud-coins">0</span></div>
+    </div>
+  </div>
+
+  <div id="powerups"></div>
+  <div id="popups"></div>
+  <div id="banner">
+    <div class="banner-top" id="banner-top"></div>
+    <div class="banner-main" id="banner-main"></div>
+    <div class="banner-sub" id="banner-sub"></div>
+  </div>
+  <div id="hint">CLICK &nbsp;/&nbsp; SPACE TO LAUNCH</div>
+
+  <!-- Funky Balls HUD -->
+  <div id="fb-hud" class="hidden">
+    <div class="hud-block hud-left">
+      <div class="label">TURN</div>
+      <div class="value" id="fb-turn">1</div>
+      <div class="fb-xp"><span class="fb-lv" id="fb-lv">LV 1</span><span class="fb-xpbar"><i id="fb-xpfill"></i></span></div>
+      <div class="fb-deck" id="fb-deck"></div>
+    </div>
+    <div class="hud-block hud-center">
+      <div class="label">FUNKY BALLS</div>
+      <div class="value small" id="fb-gun">PULSE PISTOL</div>
+    </div>
+    <div class="hud-block hud-right">
+      <div class="label">BEST TURN</div>
+      <div class="value" id="fb-best">0</div>
+      <div class="hud-coins"><i class="coin-icon"></i><span class="coins-val">0</span></div>
+      <div class="hud-coins hud-tokens"><i class="token-icon"></i><span class="tokens-val">0</span></div>
+    </div>
+  </div>
+  <div id="fb-count" class="hidden">&times;10</div>
+  <div id="fb-hint" class="hidden"><span class="key">MOUSE</span> aim &nbsp; <span class="key">CLICK</span> fire &nbsp; <span class="key">DRAG RAIL</span> / <span class="key">A D</span> move gun &nbsp; <span class="key">&larr; &rarr;</span> fine aim &nbsp; <span class="key">F</span> fast-forward &nbsp; <span class="key">R</span> recall</div>
+  <div id="fb-speed" class="hidden"></div>
+  <!-- RPG marble battle HUD (js/rpg-kampf.js) -->
+  <div id="mb-labels" class="hidden"></div>
+  <div id="mb-hud" class="hidden">
+    <div class="mb-top">
+      <span class="mb-stage" id="mb-stage">SECTOR 1-1</span>
+      <span class="mb-wave" id="mb-wave">WAVE 1 / 3</span>
+      <span class="mb-turn">TURN <b id="mb-turn">1</b></span>
+    </div>
+    <div class="mb-speed" id="mb-speed" title="Battle speed (F)">
+      <span>SPEED</span>
+      <button data-s="1">1&times;</button>
+      <button data-s="2">2&times;</button>
+      <button data-s="3">3&times;</button>
+    </div>
+    <div class="mb-boss hidden" id="mb-boss"><span id="mb-boss-name">BOSS</span><i><b id="mb-boss-fill"></b></i></div>
+    <div class="mb-bottom">
+      <div class="mb-team" id="mb-team"></div>
+      <div class="mb-hpbar" id="mb-hpbar">
+        <span class="mb-hp-label">TEAM HP <em id="mb-shield"></em></span>
+        <i><b id="mb-hp-fill"></b></i>
+        <span class="mb-hp-text" id="mb-hp-text">0 / 0</span>
+      </div>
+    </div>
+    <div class="mb-hint" id="mb-hint"></div>
+    <div class="mb-speedo hidden" id="mb-speedo"><span id="mb-speedo-name">SPD</span><b id="mb-speedo-v">0</b><i><b id="mb-speedo-fill"></b></i></div>
+  </div>
+  <!-- NEON BUBBLES HUD (js/bubbles.js) -->
+  <div id="bb-hud" class="hidden">
+    <div class="bb-top">
+      <div class="bb-level"><span>LEVEL</span><b id="bb-level">1</b></div>
+      <div class="bb-score">
+        <b id="bb-score">0</b>
+        <div class="bb-bar"><i id="bb-fill"></i><em class="bb-star s1 on">&#9733;</em><em class="bb-star" id="bb-s2">&#9733;</em><em class="bb-star s3" id="bb-s3">&#9733;</em></div>
+      </div>
+      <div class="bb-goal" id="bb-goal"><span class="bb-goal-ic" id="bb-goal-ic"></span><b id="bb-goal-txt">0 / 1</b></div>
+    </div>
+    <div class="bb-warn" id="bb-warn"></div>
+    <div class="bb-boss hidden" id="bb-boss"><span>&#9760; SENTINEL</span><i><b id="bb-boss-fill"></b></i></div>
+    <button class="bb-help" id="bb-help" title="What does what in this level? (H)">?</button>
+    <div class="bb-shots" id="bb-shots"><b id="bb-shots-n">20</b><span>SHOTS</span></div>
+    <div class="bb-next" id="bb-next-lbl">NEXT &middot; <span class="key">S</span></div>
+    <div class="bb-surge"><span>SURGE</span><i><b id="bb-surge-fill"></b></i></div>
+    <div class="bb-hint hidden" id="bb-hint"><span class="key">MOUSE</span> aim &nbsp; <span class="key">CLICK</span> shoot &nbsp; <span class="key">S</span> / <span class="key">RIGHT-CLICK</span> swap &nbsp;&middot;&nbsp; match <b>3+</b> of a colour &middot; bank shots off the walls</div>
+    <div class="bb-tut hidden" id="bb-tut">
+      <div class="bb-tut-panel">
+        <div class="bb-tut-kicker" id="bb-tut-kicker">NEW IN THIS LEVEL</div>
+        <div class="bb-tut-card" id="bb-tut-card"></div>
+        <div class="bb-tut-dots" id="bb-tut-dots"></div>
+        <button class="btn gold bb-tut-next" id="bb-tut-next">GOT IT</button>
+      </div>
+    </div>
+    <div class="bb-result hidden" id="bb-result">
+      <div class="bb-res-panel">
+        <div class="bb-res-kicker" id="bb-res-kicker">LEVEL 1</div>
+        <h2 class="bb-res-title" id="bb-res-title">LEVEL CLEAR</h2>
+        <div class="bb-res-stars" id="bb-res-stars"></div>
+        <div class="bb-res-score">SCORE <b id="bb-res-score">0</b></div>
+        <div class="bb-res-loot" id="bb-res-loot"></div>
+        <div class="bb-res-buttons" id="bb-res-buttons"></div>
+      </div>
+    </div>
+  </div>
+  <!-- HYPER cut-in + screen flash -->
+  <div id="mb-flash"></div>
+  <div id="mb-cutin">
+    <div class="ci-stripes"><i></i><i></i><i></i></div>
+    <div class="ci-band">
+      <div class="ci-portrait"><img id="ci-img" alt=""></div>
+      <div class="ci-text">
+        <span class="ci-hero" id="ci-hero"></span>
+        <b class="ci-name" id="ci-name"></b>
+        <span class="ci-desc" id="ci-desc"></span>
+      </div>
+    </div>
+  </div>
+  <div id="fb-cards" class="hidden">
+    <div class="fbc-head">
+      <div class="fbc-kicker">// LEVEL UP //</div>
+      <div class="fbc-title" id="fbc-level">LEVEL 2</div>
+      <div class="fbc-sub">CHOOSE A CARD <span id="fbc-left"></span></div>
+      <div class="fbc-slots" id="fbc-slots"></div>
+    </div>
+    <div class="fbc-row" id="fbc-row"></div>
+    <div class="fbc-foot">CLICK A CARD OR PRESS <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> &nbsp;&middot;&nbsp; CARDS LEVEL UP TO III &nbsp;&middot;&nbsp; MORE SLOTS IN THE SKILL TREE &nbsp;&middot;&nbsp; ALL SLOTS MAXED &rarr; EVERY LEVEL-UP GIVES +1 BALL</div>
+  </div>
+  <div id="mute-ind" class="hidden">SOUND OFF</div>
+  <div id="fps" class="hidden">0 FPS</div>
+  <!-- HYPE: combo counter + meter that fills into FEVER (js/spiel.js) -->
+  <div id="hype-ui"><div class="hy-combo" id="hy-combo"></div><div class="hy-bar"><i id="hy-fill"></i><span>HYPE</span></div></div>
+
+  <!-- settings, fullscreen + cursor capture (js/einstellungen.js, js/spiel.js) -->
+  <div id="sys-bar">
+    <button id="btn-settings-sys" class="sys-btn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M10.3 2.5h3.4l.5 2.6 1.9 1.1 2.5-.9 1.7 3-2 1.7v2.2l2 1.7-1.7 3-2.5-.9-1.9 1.1-.5 2.6h-3.4l-.5-2.6-1.9-1.1-2.5.9-1.7-3 2-1.7v-2.2l-2-1.7 1.7-3 2.5.9 1.9-1.1z"/></svg>
+    </button>
+    <button id="btn-fullscreen" class="sys-btn" title="Fullscreen" aria-label="Fullscreen">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>
+    </button>
+    <button id="btn-cursor" class="sys-btn" title="Cursor on / off" aria-label="Cursor on or off">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="arrow" d="M5 3l13 8-6 1.5L9 19z"/><path class="slash" d="M3 3l18 18"/></svg>
+    </button>
+  </div>
+  <div id="vcursor" aria-hidden="true"></div>
+  <div id="sys-toast" aria-live="polite"></div>
+
+  <!-- help: controls, power-ups and currencies live behind the "?" button -->
+  <button id="help-btn" class="help-btn" title="Controls &amp; help" aria-label="Controls and help">?</button>
+  <section id="screen-help" class="screen help-screen hidden">
+    <div class="panel menu-panel help-panel">
+      <header class="menu-head">
+        <span></span>
+        <h2 class="glitch" data-text="HOW TO PLAY">HOW TO PLAY</h2>
+        <button class="btn-back" id="help-close">&#10005; CLOSE</button>
+      </header>
+      <div class="help-grid">
+        <div class="help-card" style="--hc:#19e6ff">
+          <h3>CLASSIC &amp; SURVIVAL</h3>
+          <div class="help-row"><span class="key">MOUSE</span><span class="key">&larr; &rarr;</span><span class="key">A D</span><em>move the bouncepad</em></div>
+          <div class="help-row"><span class="key">CLICK</span><span class="key">SPACE</span><em>launch / release a caught ball</em></div>
+          <p>Where the ball hits the pad decides its angle. Survival: 1 ball + 2 spares, the wall creeps down.</p>
+        </div>
+        <div class="help-card" style="--hc:#8dff2a">
+          <h3>FUNKY BALLS</h3>
+          <div class="help-row"><span class="key">MOUSE</span><em>aim the Cybergun</em></div>
+          <div class="help-row"><span class="key">CLICK</span><span class="key">SPACE</span><em>fire the whole volley</em></div>
+          <div class="help-row"><span class="key">DRAG RAIL</span><span class="key">A D</span><em>slide the gun</em></div>
+          <div class="help-row"><span class="key">&larr; &rarr;</span><em>fine aim</em><span class="key">F</span><em>fast-forward</em><span class="key">R</span><em>recall</em></div>
+          <p>Break numbered bricks before they reach the line. Grab <b>+1</b> orbs for more balls. Destroyed bricks give <b>XP</b>: every level-up lets you pick a perk card (<b>1 2 3</b>).</p>
+        </div>
+        <div class="help-card" style="--hc:#ff3cf2">
+          <h3>POWER-UPS</h3>
+          <div class="legend help-legend">
+            <span><span class="pu" style="--c:#19e6ff">W</span>expand</span>
+            <span><span class="pu" style="--c:#ff3cf2">M</span>multi-ball</span>
+            <span><span class="pu" style="--c:#ff2a4d">L</span>laser</span>
+            <span><span class="pu" style="--c:#8dff2a">S</span>slow</span>
+            <span><span class="pu" style="--c:#ff9a1f">P</span>plasma</span>
+            <span><span class="pu" style="--c:#4d7cff">B</span>barrier</span>
+            <span><span class="pu" style="--c:#ffffff">+</span>extra life</span>
+          </div>
+        </div>
+        <div class="help-card" style="--hc:#ffc933">
+          <h3>COINS &amp; TOKENS</h3>
+          <p><i class="coin-icon"></i> <b>Coins</b> drop in every mode. Spend them in the Cyber-Lottery.</p>
+          <p><i class="token-icon"></i> <b>Tokens</b> are rare: only Funky Balls gives them (every 5th turn and violet crystals in the wall), plus the Plinko jackpot. Spend them in the Skill Tree.</p>
+        </div>
+        <div class="help-card" style="--hc:#a9b8d0">
+          <h3>GENERAL</h3>
+          <div class="help-row"><span class="key">P</span><span class="key">ESC</span><em>pause / back</em></div>
+          <div class="help-row"><span class="key">M</span><em>sound on / off</em></div>
+          <div class="help-row"><span class="key">&#9974;</span><em>fullscreen</em><span class="key">CURSOR</span><em>off = mouse captured while playing, ESC frees it</em></div>
+          <div class="help-row"><span class="key">1</span><span class="key">2</span><span class="key">3</span><span class="key">4</span><span class="key">5</span><em>pick a mode on the mode screen</em></div>
+          <div class="help-row"><span class="key">&#9881;</span><em>settings: volume, graphics, shake, damage numbers, reset game</em></div>
+        </div>
+        <div class="help-card" style="--hc:#9a5cff">
+          <h3>NEON BUBBLES</h3>
+          <div class="help-row"><span class="key">MOUSE</span><span class="key">&larr; &rarr;</span><em>aim</em><span class="key">CLICK</span><span class="key">SPACE</span><em>shoot</em></div>
+          <div class="help-row"><span class="key">S</span><span class="key">RIGHT-CLICK</span><em>swap with the next bubble</em></div>
+          <div class="help-row"><span class="key">H</span><span class="key">?</span><em>explain everything in the current level</em></div>
+          <p>Match <b>3+</b> of a colour to pop them; whatever hangs on nothing drops into the data sinks (&times;1&ndash;&times;3). Two paths: <b>CLASSIC</b> teaches one new thing at a time (with a tutorial card), <b>HARD</b> opens after the first boss. Every 10th level the <b>Sentinel</b> fights back.</p>
+        </div>
+        <div class="help-card" style="--hc:#ffc933">
+          <h3>RPG</h3>
+          <div class="help-row"><span class="key">DRAG BACK</span><span class="key">RELEASE</span><em>sling the active hero</em></div>
+          <div class="help-row"><span class="key">H</span><em>arm HYPER</em><span class="key">&larr; &rarr;</span><span class="key">SPACE</span><em>aim / sling</em><span class="key">F</span><em>speed 1&times; / 2&times; / 3&times;</em></div>
+          <p><b style="color:#19e6ff">&#10226; BOUNCE</b> heroes rebound off enemies, <b style="color:#ff8a1f">&#10148; PIERCE</b> heroes smash through them. Touch your own heroes to fire their <b>combos</b>. Enemies attack when their countdown hits 0.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- title -->
+  <section id="screen-title" class="screen">
+    <div class="panel title-panel">
+      <div class="wallets title-wallet">
+        <div class="wallet" title="Coins"><i class="coin-icon"></i><span class="coins-val">0</span></div>
+        <div class="wallet tokens" title="Tokens"><i class="token-icon"></i><span class="tokens-val">0</span></div>
+      </div>
+      <div class="kicker">// CYBER BRICK BREAKER //</div>
+      <h1 class="glitch" data-text="NEON SIGIL">NEON SIGIL</h1>
+      <p class="tagline">Breach the firewall. Shatter the sigil. Take down the Sentinel.</p>
+      <div class="menu-buttons">
+        <button id="btn-start" class="btn">&#9654; PLAY</button>
+        <div class="menu-row">
+          <button id="btn-collection" class="btn alt">&#9672; COLLECTION</button>
+          <button id="btn-skills" class="btn violet">&#11041; SKILL TREE</button>
+          <button id="btn-lottery" class="btn gold">&#9824; CYBER-LOTTERY</button>
+        </div>
+        <button id="btn-settings" class="btn ghost settings-btn">&#9881; SETTINGS</button>
+      </div>
+      <div class="loadout">BALL <b id="title-ball">CORE ORB</b> <span>//</span> PAD <b id="title-pad">VECTOR-1</b> <span>//</span> GUN <b id="title-gun">PULSE PISTOL</b></div>
+      <div class="hi">HI-SCORE <span id="title-hi">0</span></div>
+    </div>
+  </section>
+
+  <!-- mode select -->
+  <section id="screen-modes" class="screen hidden">
+    <div class="panel menu-panel modes-panel">
+      <header class="menu-head">
+        <button class="btn-back" id="modes-back">&#8249; BACK</button>
+        <h2 class="glitch" data-text="SELECT MODE">SELECT MODE</h2>
+        <div class="wallet"><i class="coin-icon"></i><span class="coins-val">0</span></div>
+      </header>
+      <div class="mode-grid">
+        <button class="mode-card" data-mode="classic" style="--mc:#19e6ff">
+          <div class="mode-key">1</div>
+          <div class="mode-icon classic"><i class="mi-brick"></i><i class="mi-brick"></i><i class="mi-brick"></i><i class="mi-ball"></i><i class="mi-pad"></i></div>
+          <h3>CLASSIC</h3>
+          <p>Break through hand-built sectors, grab power-ups and take down the Sentinel on every 3rd sector. 3 lives, 1UPs included.</p>
+          <div class="mode-gear">USES <b>BALL</b> + <b>BOUNCEPAD</b></div>
+          <div class="mode-best">HI-SCORE <b id="best-classic">0</b></div>
+        </button>
+        <button class="mode-card" data-mode="survival" style="--mc:#ff3cf2">
+          <div class="mode-key">2</div>
+          <div class="mode-icon survival"><i class="mi-wall"></i><i class="mi-arrow"></i><i class="mi-ball"></i><i class="mi-ball"></i><i class="mi-ball"></i></div>
+          <h3>SURVIVAL</h3>
+          <p>One ball and only 2 spares &mdash; no extra lives, ever. The firewall creeps down every few seconds. How long can you hold the line?</p>
+          <div class="mode-gear">USES <b>BALL</b> + <b>BOUNCEPAD</b></div>
+          <div class="mode-best">HI-SCORE <b id="best-survival">0</b></div>
+        </button>
+        <button class="mode-card" data-mode="funky" style="--mc:#8dff2a">
+          <div class="mode-key">3</div>
+          <div class="mode-icon funky"><i class="mi-num">12</i><i class="mi-num hot">24</i><i class="mi-num">7</i><i class="mi-gun"></i></div>
+          <h3>FUNKY BALLS</h3>
+          <p>Turn-based. Start with one ball, aim your Cybergun and chip away numbered bricks before the wall reaches your line. The only mode that earns <b class="violet-txt">tokens</b>.</p>
+          <div class="mode-gear">USES <b>BALL</b> + <b id="mode-gun">PULSE PISTOL</b></div>
+          <div class="mode-best">BEST TURN <b id="best-funky">0</b></div>
+        </button>
+        <button class="mode-card" data-mode="rpg" style="--mc:#ffc933">
+          <div class="mode-key">4</div>
+          <div class="mode-icon rpg"><i class="mi-hero"></i><i class="mi-hero"></i><i class="mi-hero"></i><i class="mi-vs">VS</i><i class="mi-foe"></i><i class="mi-foe"></i></div>
+          <h3>RPG</h3>
+          <p>Marble RPG. Sling a squad of 4 hero balls through waves of viruses and bosses, trigger combos, farm AFK loot and collect 26 heroes.</p>
+          <div class="mode-gear">USES <b>RPG HEROES</b></div>
+          <div class="mode-best">SECTOR <b id="best-rpg">1-1</b></div>
+        </button>
+        <button class="mode-card" data-mode="bubble" style="--mc:#9a5cff">
+          <div class="mode-key">5</div>
+          <div class="mode-icon bubble"><i class="mb1"></i><i class="mb2"></i><i class="mb3"></i><i class="mb4"></i><i class="mb5"></i><i class="mb6"></i><i class="mbs"></i><i class="mi-gun"></i></div>
+          <h3>NEON BUBBLES</h3>
+          <p>Bubble shooter: a classic and a hard path of 60 levels each. Free caged sprites, purge worms, extract chips and take down the Sentinel.</p>
+          <div class="mode-gear">USES <b>CYBERGUN</b></div>
+          <div class="mode-best">STARS <b id="best-bubble">0</b></div>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RPG mode: AFK hub, formation, battle, heroes -->
+  <section id="screen-rpg" class="rpg-screen hidden" data-view="hub">
+    <div class="rpg-canvas" id="rpg-canvas"></div>
+    <div class="rpg-layer" id="rpg-bars"></div>
+    <div class="rpg-layer" id="rpg-pops"></div>
+    <header class="rpg-top">
+      <button class="btn-back" id="rpg-back">&#8249; BACK</button>
+      <div class="rpg-title"><span class="rpg-kicker">// RPG //</span><h2 id="rpg-title">NEURAL ARENA</h2></div>
+      <div class="rpg-wallets">
+        <div class="wallet" title="Coins"><i class="coin-icon"></i><span class="coins-val">0</span></div>
+        <div class="wallet xp" title="Hero XP"><i class="xp-icon"></i><span id="rpg-xp">0</span></div>
+        <div class="wallet crates" title="Hero crates"><i class="crate-icon"></i><span id="rpg-crates">0</span></div>
+        <div class="wallet dust" title="Stardust — copies of heroes you own turn into it; it buys copies"><i class="dust-icon"></i><span id="rpg-dust">0</span></div>
+      </div>
+    </header>
+
+    <div class="rpg-view" id="rpg-hub">
+      <div class="hub-plate"><span class="label">CAMPAIGN</span><b id="hub-stage">SECTOR 1-1</b><span class="label">TEAM POWER <i id="hub-power">0</i></span></div>
+      <div class="run-stats"><span>NEON RUN</span><b id="run-dist">0.00 KM</b><span>VIRUSES DELETED</span><b id="run-kills">0</b></div>
+      <div class="run-banner" id="run-banner"></div>
+      <div class="rpg-dock">
+        <button class="afk-chest" id="afk-chest">
+          <span class="afk-head"><span class="label">AFK LOOT</span><b id="afk-time">0h 00m</b><i>/ 12h</i></span>
+          <span class="afk-bar"><i id="afk-fill"></i></span>
+          <span class="afk-loot">
+            <span><i class="coin-icon"></i><b id="afk-coins">0</b></span>
+            <span><i class="xp-icon"></i><b id="afk-xp">0</b></span>
+            <span class="afk-crate"><i class="crate-icon"></i><b id="afk-crates">0</b><em><i id="afk-crate-prog"></i></em></span>
+            <span><i class="dbox-icon"></i><b id="afk-boxes">0</b></span>
+          </span>
+          <span class="afk-rate" id="afk-rate"></span>
+          <span class="afk-go">COLLECT</span>
+        </button>
+        <div class="dock-mid">
+          <button class="dock-btn" id="rpg-heroes-btn"><span class="dock-ic">&#9673;</span>HEROES</button>
+          <button class="dock-btn" id="rpg-crates-btn"><i class="crate-icon"></i>CRATES <b id="crate-count">0</b></button>
+        </div>
+        <button class="battle-btn" id="rpg-battle-btn">
+          <span class="bb-label">BATTLE</span>
+          <b id="battle-stage">1-1</b>
+          <em>ENEMY POWER <i id="battle-power">0</i></em>
+        </button>
+      </div>
+    </div>
+
+    <div class="rpg-view hidden" id="rpg-form">
+      <div class="form-vs">
+        <div class="fp mine"><span>YOUR POWER</span><b id="form-pw">0</b></div>
+        <div class="vs">VS</div>
+        <div class="fp foe"><span>ENEMY POWER</span><b id="form-pw-foe">0</b></div>
+      </div>
+      <div class="form-stage" id="form-stage">SECTOR 1-1</div>
+      <div class="form-panel">
+        <div class="form-head"><span>SELECT HEROES <b id="form-count">0 / 4</b></span><span class="form-hint" id="form-hint"></span><div class="form-filter" id="form-filter"></div></div>
+        <div class="form-roster" id="form-roster"></div>
+        <button class="rpg-begin" id="rpg-begin">BEGIN BATTLE</button>
+      </div>
+    </div>
+
+    <div class="rpg-view hidden" id="rpg-heroes">
+      <div class="hero-roster-wrap"><div class="hero-roster-head">ROSTER <b id="hero-count">0 / 25</b><span class="hero-link" id="hero-link"></span></div><div class="hero-roster" id="hero-roster"></div></div>
+      <aside class="hero-panel" id="hero-panel"></aside>
+    </div>
+
+    <div class="rpg-result hidden" id="rpg-result">
+      <div class="res-panel">
+        <div class="res-kicker" id="res-kicker">SECTOR 1-1</div>
+        <h2 class="res-title glitch" id="res-title" data-text="VICTORY">VICTORY</h2>
+        <div class="res-loot" id="res-loot"></div>
+        <div class="res-meter" id="res-meter"></div>
+        <div class="res-buttons"><button class="btn small" id="res-next">NEXT STAGE &#8250;</button><button class="btn small ghost" id="res-hub">HUB</button></div>
+      </div>
+    </div>
+
+    <div class="rpg-reveal hidden" id="rpg-reveal">
+      <div class="rv-rays"></div>
+      <div class="rv-panel">
+        <div class="rv-kicker" id="rv-kicker"></div>
+        <h2 class="rv-title" id="rv-title"></h2>
+        <div class="rv-body" id="rv-body"></div>
+        <div class="rv-buttons" id="rv-buttons"></div>
+      </div>
+    </div>
+    <div class="rpg-toast hidden" id="rpg-toast"></div>
+  </section>
+
+  <!-- NEON BUBBLES level map (js/bubbles.js) -->
+  <section id="screen-bubble" class="bubble-screen hidden">
+    <div class="bm-bg"></div>
+    <div class="bm-scroll" id="bm-scroll"><div class="bm-world" id="bm-world"></div></div>
+    <header class="bm-top">
+      <button class="btn-back" id="bm-back">&#8249; BACK</button>
+      <div class="bm-title"><span class="bm-kicker" id="bm-kicker">// DATA PURGE //</span><h2>NEON BUBBLES</h2>
+        <div class="bm-paths" id="bm-paths"><button data-p="classic">CLASSIC</button><button data-p="hard">&#9760; HARD</button></div></div>
+      <div class="bm-wallets">
+        <div class="wallet bm-starwallet" title="Stars"><i class="bm-staricon">&#9733;</i><span id="bm-stars">0 / 180</span></div>
+        <div class="wallet" title="Coins"><i class="coin-icon"></i><span class="coins-val">0</span></div>
+      </div>
+    </header>
+    <div class="bm-panel hidden" id="bm-panel">
+      <div class="bm-card">
+        <button class="bm-x" id="bm-p-close" aria-label="Close">&times;</button>
+        <div class="bm-p-kicker" id="bm-p-kicker"></div>
+        <div class="bm-p-type" id="bm-p-type"></div>
+        <div class="bm-p-stars" id="bm-p-stars"></div>
+        <p class="bm-p-goal" id="bm-p-goal"></p>
+        <div class="bm-p-feats" id="bm-p-feats"></div>
+        <div class="bm-p-info" id="bm-p-info"></div>
+        <button class="btn gold bm-play" id="bm-p-play">&#9654; PLAY</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- settings (js/einstellungen.js) -->
+  <section id="screen-settings" class="screen settings-screen hidden">
+    <div class="panel menu-panel settings-panel">
+      <header class="menu-head">
+        <button class="btn-back" id="set-back">&#8249; BACK</button>
+        <h2 class="glitch" data-text="SETTINGS">SETTINGS</h2>
+        <span></span>
+      </header>
+      <div class="set-body" id="set-body"></div>
+    </div>
+    <div class="set-danger hidden" id="set-danger">
+      <div class="sd-card" id="sd-card">
+        <div class="sd-icon">!</div>
+        <h3>RESET GAME</h3>
+        <p>This permanently deletes <b>all</b> of your progress: coins, tokens, balls, pads, guns, the skill tree, hi-scores, every RPG hero and stage, your bubble levels and your settings. <b>It cannot be undone.</b></p>
+        <label class="sd-type">1. Type <b>RESET</b> to unlock <input id="sd-input" autocomplete="off" spellcheck="false" maxlength="5" placeholder="RESET"></label>
+        <span class="sd-step">2. Then hold the red button for 3 seconds</span>
+        <button class="sd-hold" id="sd-hold" disabled><i id="sd-fill"></i><span id="sd-label">TYPE RESET FIRST</span></button>
+        <button class="btn small ghost sd-cancel" id="sd-cancel">CANCEL &mdash; KEEP MY PROGRESS</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- skill tree -->
+  <section id="screen-skills" class="screen hidden">
+    <div class="panel menu-panel skills-panel">
+      <header class="menu-head">
+        <button class="btn-back" id="skills-back">&#8249; BACK</button>
+        <h2 class="glitch violet" data-text="SKILL TREE">SKILL TREE</h2>
+        <div class="wallet tokens"><i class="token-icon"></i><span class="tokens-val">0</span></div>
+      </header>
+      <div class="skills">
+        <div class="skill-map-wrap">
+          <div class="skill-map" id="skill-map">
+            <svg id="skill-links" viewBox="0 0 1000 560" preserveAspectRatio="none"></svg>
+            <div class="branch-tag eco">ECONOMY</div>
+            <div class="branch-tag funky">FUNKY BALLS</div>
+          </div>
+        </div>
+        <aside class="skill-detail" id="sk-detail">
+          <div class="sk-head"><span class="sk-icon" id="sk-icon">C+</span><div><h3 id="sk-name">COIN FLOW</h3><div class="sk-level" id="sk-level">LEVEL 0 / 5</div></div></div>
+          <p class="sk-desc" id="sk-desc"></p>
+          <div class="sk-effects">
+            <div><span class="label">NOW</span><b id="sk-now">&mdash;</b></div>
+            <div><span class="label">NEXT</span><b id="sk-next">&mdash;</b></div>
+          </div>
+          <button class="btn violet" id="sk-buy">UPGRADE</button>
+          <div class="sk-hint hidden" id="sk-hint">NOT ENOUGH TOKENS &mdash; PLAY FUNKY BALLS TO EARN MORE</div>
+        </aside>
+      </div>
+      <div class="skill-foot"><i class="token-icon"></i> Tokens come only from <b>Funky Balls</b>: one every 5th turn, rare violet crystals in the wall &mdash; and the Plinko jackpot.</div>
+    </div>
+  </section>
+
+  <!-- collection -->
+  <section id="screen-collection" class="screen hidden">
+    <div class="panel menu-panel">
+      <header class="menu-head">
+        <button class="btn-back" id="coll-back">&#8249; BACK</button>
+        <h2 class="glitch" data-text="COLLECTION">COLLECTION</h2>
+        <div class="wallet"><i class="coin-icon"></i><span class="coins-val">0</span></div>
+      </header>
+      <nav class="tabs">
+        <button class="tab active" data-tab="ball">BALLS <span class="tab-count" id="count-ball"></span></button>
+        <button class="tab" data-tab="pad">BOUNCEPADS <span class="tab-count" id="count-pad"></span></button>
+        <button class="tab" data-tab="gun">CYBERGUNS <span class="tab-count" id="count-gun"></span></button>
+      </nav>
+      <div class="coll">
+        <div class="coll-grid" id="coll-grid"></div>
+        <aside class="coll-detail" id="coll-detail">
+          <div class="coll-preview" id="coll-preview"></div>
+          <div class="rarity-tag" id="coll-rarity">COMMON</div>
+          <h3 id="coll-name">CORE ORB</h3>
+          <div class="abilities" id="coll-abilities"></div>
+          <button class="btn" id="coll-equip">EQUIP</button>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- cyber-lottery -->
+  <section id="screen-lottery" class="screen hidden">
+    <div class="panel menu-panel">
+      <header class="menu-head">
+        <button class="btn-back" id="lot-back">&#8249; BACK</button>
+        <h2 class="glitch gold" id="lot-title" data-text="CYBER-LOTTERY">CYBER-LOTTERY</h2>
+        <div class="wallet"><i class="coin-icon"></i><span class="coins-val">0</span></div>
+      </header>
+
+      <div id="lot-hub" class="lot-hub">
+        <button class="hub-card bj" id="hub-bj">
+          <div class="hub-icon">
+            <span class="mini-card">A<i>&#9824;</i></span>
+            <span class="mini-card red">K<i>&#9829;</i></span>
+          </div>
+          <h3>BLACK JACK</h3>
+          <p>Beat the house AI to 21 and double your coins &mdash; or lose your bet. Blackjack pays 3:2.</p>
+          <span class="hub-go">ENTER THE TABLE &#8250;</span>
+        </button>
+        <button class="hub-card boxes" id="hub-boxes">
+          <div class="hub-icon"><img id="hub-box-img" alt=""></div>
+          <h3>DATA BOXES</h3>
+          <p>Save your coins and crack open loot boxes to unlock new balls, bouncepads and cyberguns.</p>
+          <span class="hub-go">OPEN BOXES &#8250;</span>
+        </button>
+        <button class="hub-card pk-card locked" id="hub-plinko">
+          <div class="hub-icon plinko-icon">
+            <i></i><i></i><i></i><i></i><i></i><i></i><b></b>
+            <span class="lock-badge">LOCKED</span>
+          </div>
+          <h3>PLINKO</h3>
+          <p>Drop your ball through the peg wall. Coin multipliers up to 9&times; &mdash; or the 0.09% token jackpot.</p>
+          <span class="hub-go" id="hub-plinko-go">UNLOCK IN THE SKILL TREE &#8250;</span>
+        </button>
+        <button class="hub-card cr-card locked" id="hub-crash">
+          <div class="hub-icon crash-icon">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <path class="cr-area" d="M12 108 Q72 104 100 26 L100 108 Z"/>
+              <path class="cr-line" d="M12 108 Q72 104 100 26"/>
+              <g class="cr-jet"><path d="M0 -6 L22 0 L0 6 L4 0 Z M4 -2 L-6 -14 L-2 -14 L10 -1 Z M4 2 L-6 14 L-2 14 L10 1 Z"/></g>
+            </svg>
+            <span class="lock-badge">LOCKED</span>
+          </div>
+          <h3>CRASH PLANE</h3>
+          <p>The multiplier climbs faster and faster &mdash; cash out before the jet crashes. Up to 500&times;.</p>
+          <span class="hub-go" id="hub-crash-go">UNLOCK IN THE SKILL TREE &#8250;</span>
+        </button>
+      </div>
+
+      <div id="lot-crash" class="plinko crash hidden">
+        <div class="plinko-board crash-board" id="crash-canvas">
+          <div class="crash-axis" id="crash-axis"></div>
+          <div class="crash-mult idle" id="crash-mult">1.00&times;</div>
+          <div class="crash-status" id="crash-status">READY FOR TAKE-OFF</div>
+        </div>
+        <aside class="plinko-side crash-side">
+          <div class="pk-jackpot cr-info"><span class="label">FLIGHT PLAN</span><b>UP TO 500&times;</b><span class="pk-small">RANDOM CRASH &middot; EVEN AT 1.00&times;</span></div>
+          <div class="bj-msg pk-msg" id="cr-msg">PLACE YOUR BET AND TAKE OFF</div>
+          <div class="bj-betval">BET <i class="coin-icon"></i> <b id="cr-bet">25</b></div>
+          <div class="pk-chips" id="cr-chips">
+            <button class="chip" data-chip="10">10</button>
+            <button class="chip" data-chip="25">25</button>
+            <button class="chip" data-chip="50">50</button>
+            <button class="chip" data-chip="100">100</button>
+            <button class="chip clear" data-chip="clear">CLR</button>
+          </div>
+          <div class="cr-auto">
+            <span class="label">AUTO CASH-OUT</span>
+            <div class="cr-autos" id="cr-autos">
+              <button data-auto="0">OFF</button>
+              <button data-auto="1.5">1.5&times;</button>
+              <button data-auto="2">2&times;</button>
+              <button data-auto="5">5&times;</button>
+              <button data-auto="10">10&times;</button>
+            </div>
+          </div>
+          <button class="btn gold" id="cr-go">&#9650; TAKE OFF</button>
+          <div class="pk-history" id="cr-history"></div>
+          <div class="pk-note"><span class="key">SPACE</span> takes off and cashes out. Leave the runway only after cashing out.</div>
+        </aside>
+      </div>
+
+      <div id="lot-plinko" class="plinko hidden">
+        <div class="plinko-board" id="plinko-canvas"></div>
+        <aside class="plinko-side">
+          <div class="pk-jackpot"><span class="label">JACKPOT</span><b>+10 <i class="token-icon"></i></b><span class="pk-small">OUTER SLOTS &middot; 0.09% CHANCE</span></div>
+          <div class="pk-luck"><span class="label">PLINKO LUCK</span><b id="pk-luck">0 / 5</b></div>
+          <div class="bj-msg pk-msg" id="pk-msg">PLACE YOUR BET AND DROP</div>
+          <div class="bj-betval">BET <i class="coin-icon"></i> <b id="pk-bet">25</b></div>
+          <div class="pk-chips" id="pk-chips">
+            <button class="chip" data-chip="10">10</button>
+            <button class="chip" data-chip="25">25</button>
+            <button class="chip" data-chip="50">50</button>
+            <button class="chip" data-chip="100">100</button>
+            <button class="chip clear" data-chip="clear">CLR</button>
+          </div>
+          <button class="btn gold" id="pk-drop">&#9660; DROP BALL</button>
+          <div class="pk-history" id="pk-history"></div>
+          <div class="pk-note">Your equipped ball is used as a cosmetic &mdash; it has no effect here.</div>
+        </aside>
+      </div>
+
+      <div id="lot-bj" class="bj hidden">
+        <div class="bj-table">
+          <div class="bj-row">
+            <div class="bj-label">HOUSE AI <span class="bj-total" id="bj-dealer-total"></span></div>
+            <div class="bj-hand" id="bj-dealer"></div>
+          </div>
+          <div class="bj-center">
+            <div class="bj-msg" id="bj-msg">PLACE YOUR BET</div>
+            <div class="bj-rules">BLACKJACK PAYS 3:2 &middot; HOUSE STANDS ON 17 &middot; DOUBLE ON ANY FIRST TWO CARDS</div>
+          </div>
+          <div class="bj-row">
+            <div class="bj-hand" id="bj-player"></div>
+            <div class="bj-label">YOU <span class="bj-total" id="bj-player-total"></span></div>
+          </div>
+        </div>
+        <div class="bj-controls">
+          <div class="bj-bet" id="bj-betbar">
+            <span class="bj-betval">BET <i class="coin-icon"></i> <b id="bj-bet">0</b></span>
+            <button class="chip" data-chip="10">10</button>
+            <button class="chip" data-chip="25">25</button>
+            <button class="chip" data-chip="50">50</button>
+            <button class="chip" data-chip="100">100</button>
+            <button class="chip max" data-chip="max">ALL IN</button>
+            <button class="chip clear" data-chip="clear">CLR</button>
+            <button class="btn small" id="bj-deal">DEAL</button>
+          </div>
+          <div class="bj-actions hidden" id="bj-actions">
+            <button class="btn small" id="bj-hit">HIT</button>
+            <button class="btn small alt" id="bj-stand">STAND</button>
+            <button class="btn small gold" id="bj-double">DOUBLE</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="lot-boxes" class="boxes hidden">
+        <div class="box-offers" id="box-offers"></div>
+        <div class="drop-rates">
+          <b>DROP RATES</b> &mdash; each drop is coins (~60%) or gear (~40%): balls, bouncepads or cyberguns.
+          Gear rarity: <span style="color:#39ff6a">RARE 50%</span> &middot;
+          <span style="color:#2d9bff">SUPER RARE 28%</span> &middot;
+          <span style="color:#b84dff">EPIC 14%</span> &middot;
+          <span style="color:#ff2a4d">MYTHIC 6%</span> &middot;
+          <span style="color:#ffd23a">LEGENDARY 2%</span>. Duplicates turn into coins.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- data box opening stage -->
+  <section id="box-stage" class="hidden">
+    <div class="box-rays"></div>
+    <div class="box-canvas" id="box-canvas"></div>
+    <div class="box-title" id="box-title">DATA BOX</div>
+    <div class="box-count" id="box-count">0</div>
+    <div class="box-reward" id="box-reward"></div>
+    <div class="box-tap" id="box-tap">TAP TO OPEN</div>
+    <div class="box-summary hidden" id="box-summary">
+      <h2 class="glitch" data-text="DATA RECOVERED">DATA RECOVERED</h2>
+      <div class="sum-coins"><i class="coin-icon"></i> <span id="sum-coins">+0</span> COINS</div>
+      <div class="sum-grid" id="sum-grid"></div>
+      <div class="sum-buttons">
+        <button class="btn" id="box-done">COLLECT</button>
+        <button class="btn gold" id="box-again">OPEN ANOTHER</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- pause -->
+  <section id="screen-pause" class="screen hidden">
+    <div class="panel small">
+      <h2 class="glitch" data-text="PAUSED">PAUSED</h2>
+      <p class="tagline">Press <span class="key">P</span> or click to resume</p>
+      <button id="btn-resume" class="btn">&#9654; RESUME</button>
+      <button id="btn-pause-settings" class="btn ghost">&#9881; SETTINGS</button>
+      <button id="btn-quit" class="btn ghost">ABORT RUN</button>
+    </div>
+  </section>
+
+  <!-- game over -->
+  <section id="screen-over" class="screen hidden">
+    <div class="panel small">
+      <div class="kicker red" id="over-kicker">// CONNECTION TERMINATED //</div>
+      <h2 class="glitch red" data-text="SYSTEM FAILURE">SYSTEM FAILURE</h2>
+      <div class="final">
+        <div><span class="label" id="final-l1">SCORE</span><span id="final-score">0</span></div>
+        <div><span class="label" id="final-l2">SECTOR</span><span id="final-level">01</span></div>
+        <div class="gold"><span class="label">COINS</span><span id="final-coins">+0</span></div>
+        <div class="violet hidden" id="final-tokens-wrap"><span class="label">TOKENS</span><span id="final-tokens">+0</span></div>
+      </div>
+      <div id="new-hi" class="new-hi hidden">NEW HI-SCORE</div>
+      <button id="btn-retry" class="btn">&#8635; REBOOT</button>
+      <button id="btn-menu" class="btn ghost">MAIN MENU</button>
+    </div>
+  </section>
+
+  <div id="load-error" class="screen hidden">
+    <div class="panel small">
+      <h2>3D ENGINE OFFLINE</h2>
+      <p class="tagline">Could not load <code>js/lib/three.min.js</code>. Make sure the <code>js/lib</code> folder sits next to <code>index.html</code>.</p>
+    </div>
+  </div>
+
+  <script src="js/lib/three.min.js"></script>
+  <script src="js/lib/CopyShader.js"></script>
+  <script src="js/lib/LuminosityHighPassShader.js"></script>
+  <script src="js/lib/EffectComposer.js"></script>
+  <script src="js/lib/MaskPass.js"></script>
+  <script src="js/lib/RenderPass.js"></script>
+  <script src="js/lib/ShaderPass.js"></script>
+  <script src="js/lib/UnrealBloomPass.js"></script>
+  <script src="js/lib/RoundedBoxGeometry.js"></script>
+  <script src="js/lib/Reflector.js"></script>
+  <script src="js/profil.js"></script>
+  <script src="js/modelle.js"></script>
+  <script src="js/spiel.js"></script>
+  <script src="js/funky.js"></script>
+  <script src="js/sammlung.js"></script>
+  <script src="js/skills.js"></script>
+  <script src="js/lotterie.js"></script>
+  <script src="js/rpg-helden.js"></script>
+  <script src="js/rpg-idle.js"></script>
+  <script src="js/rpg.js"></script>
+  <script src="js/rpg-kampf.js"></script>
+  <script src="js/bubbles.js"></script>
+  <script src="js/einstellungen.js"></script>
+</body>
+</html>
