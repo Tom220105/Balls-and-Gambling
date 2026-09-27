@@ -1112,6 +1112,9 @@
 
     function loop(now) {
       raf = requestAnimationFrame(loop);
+      // the FPS setting (js/einstellungen.js) counts for the menu previews too
+      const cap = { 30: 30, 60: 60 }[NEON.settings && NEON.settings.get('fpsCap')] || 0;
+      if (cap && now - last < 1000 / cap - 2) return;
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
       last = now;
       if (!program || !host) return;

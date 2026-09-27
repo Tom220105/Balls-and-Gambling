@@ -65,8 +65,10 @@
   //   bloom: glow strength 0–150       shake: screen shake 0–100
   //   reflect: mirror floor            popups: floating damage numbers   fps: frame counter
   //   bgfx: the background reacts to the action (HYPE, fireworks, FEVER)
+  //   fpsCap: '30' | '60' | 'max' frames per second (phones and tablets start at 60, PC unlimited)
   const SETTINGS_KEY = 'neonSigil.settings';
-  const SETTING_DEFAULTS = { master: 85, music: 70, sfx: 100, quality: 'auto', bloom: 100, shake: 100, reflect: true, popups: true, fps: false, bgfx: true };
+  const SETTING_DEFAULTS = { master: 85, music: 70, sfx: 100, quality: 'auto', bloom: 100, shake: 100, reflect: true, popups: true, fps: false, bgfx: true,
+    fpsCap: (NEON.platform || (NEON.mobile ? 'phone' : 'pc')) === 'pc' ? 'max' : '60' };
   const settings = (() => {
     let s = {};
     try { s = JSON.parse(store.get(SETTINGS_KEY, '{}')) || {}; } catch (e) { s = {}; }
@@ -261,16 +263,20 @@
   // the device the player picked on the first start (js/mobil.js): 'pc' | 'phone' | 'tablet'
   const platform = () => NEON.platform || (NEON.mobile ? 'phone' : 'pc');
   const handheld = () => platform() !== 'pc';
-  // Render resolution: phones and tablets use the full sharpness of their screen (up to 3x,
-  // an iPhone is 3x), PC up to 2x. 'auto' starts there and steps down when the frame rate sags.
+  // Render resolution: PC up to 2x. Phones and tablets: AUTO renders at 2x (sharp, and less than
+  // half the work of an iPhone's full 3x), HIGH at the full sharpness of the screen (up to 3x).
+  // AUTO steps down when the game can't keep the chosen frame rate (monitorQuality).
   const DPR = window.devicePixelRatio || 1;
   const maxPr = () => Math.min(DPR, handheld() ? 3 : 2);
   function qualityPr(q) {
     const max = maxPr();
-    if (q === 'medium') return Math.min(max, handheld() ? 2 : 1.25);
+    if (q === 'high') return max;
+    if (q === 'medium') return Math.min(max, handheld() ? 1.75 : 1.25);
     if (q === 'low') return handheld() ? Math.min(max, 1.5) : Math.min(max, 1) * 0.8;
-    return max;   // auto and high
+    return Math.min(max, 2);   // auto
   }
+  // the chosen frame-rate cap in frames per second (0 = as fast as the screen refreshes)
+  const fpsCap = () => ({ 30: 30, 60: 60 }[settings.fpsCap] || 0);
   const quality = { pr: qualityPr(settings.quality), reflect: settings.reflect && settings.quality !== 'low', acc: 0, frames: 0, last: 0 };
   renderer.setPixelRatio(quality.pr);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -363,6 +369,13 @@
   const BLOOM = 0.95;
   const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), BLOOM * (settings.bloom / 100), 0.6, 0.35);
   bloom.enabled = settings.bloom > 0;
+  // Phones and tablets: the glow is blurry anyway, so it is worked out at a lower resolution
+  // (it no longer grows with the render resolution). Saves a lot of GPU time at 2x and 3x.
+  const bloomSetSize = bloom.setSize.bind(bloom);
+  bloom.setSize = (w, h) => {
+    const k = handheld() ? Math.min(1, 1.25 / Math.max(1, quality.pr)) : 1;
+    bloomSetSize(Math.max(2, w * k), Math.max(2, h * k));
+  };
   composer.addPass(bloom);
   const finalPass = new THREE.ShaderPass(FINAL_SHADER);
   composer.addPass(finalPass);
@@ -4169,26 +4182,28 @@
   }
   window.addEventListener('resize', resize);
 
-  // Adaptive quality: if the frame rate sags below 45 FPS, make the picture cheaper in steps.
-  // PC: lower the render resolution first (down to 1x), then switch the mirror floor off.
-  // Phones and tablets keep a sharp picture: the mirror floor goes first, then the resolution
-  // in small steps, never below 2x (1.5x only when the game really stutters, below 30 FPS).
+  // Adaptive quality: when the game can't keep its frame rate (the FPS setting, or 60 when it
+  // is unlimited), make the picture cheaper in steps. PC reacts below about 45 FPS: lower the
+  // render resolution first (down to 1x), then switch the mirror floor off. Phones and tablets
+  // react a little earlier: the mirror floor goes first, then the resolution in small steps
+  // down to 1.5x (1.25x only when the game really stutters).
   function monitorQuality(realDt) {
     if (DEBUG.hq || settings.quality !== 'auto' || menuOpen || document.hidden || realDt > 0.25) return;
     quality.acc += realDt;
     quality.frames++;
-    if (quality.acc < 3) return;
+    if (quality.acc < 2) return;
     const avg = quality.acc / quality.frames;
     quality.acc = 0;
     quality.frames = 0;
-    if (avg < 1 / 45) return;
     const hh = handheld();
+    const target = 1 / (fpsCap() || 60);
+    if (avg < target * (hh ? 1.2 : 1.35)) return;
     if (hh && reflector && quality.reflect) {
       quality.reflect = false;
       reflector.visible = false;
       return;
     }
-    const floor = hh ? Math.min(maxPr(), avg > 1 / 30 ? 1.5 : 2) : 1;
+    const floor = hh ? Math.min(maxPr(), avg > target * 1.6 ? 1.25 : 1.5) : 1;
     if (quality.pr > floor + 0.01) {
       quality.pr = Math.max(floor, quality.pr - 0.25);
       resize();
@@ -4208,6 +4223,7 @@
       if (reflector) reflector.visible = quality.reflect;
       resize();
     } else if (k === 'fps') $('fps').classList.toggle('hidden', !settings.fps);
+    else if (k === 'fpsCap') { quality.acc = 0; quality.frames = 0; }   // measure again at the new rate
   }
   NEON.settings = {
     defaults: SETTING_DEFAULTS,
@@ -4347,6 +4363,9 @@
 
   function frame(now) {
     requestAnimationFrame(frame);
+    // FPS setting: wait until it's time for the next frame (2 ms slack for timer jitter)
+    const cap = fpsCap();
+    if (cap && now - last < 1000 / cap - 2) return;
     const realDt = Math.max((now - last) / 1000, 0);
     last = now;
     const dt = Math.min(realDt, 1 / 30);
