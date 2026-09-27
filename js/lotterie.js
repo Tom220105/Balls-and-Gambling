@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — Cyber-Lottery
+   BALLS & GAMBLING — Cyber-Lottery
    * Black Jack against the house AI (6-deck shoe, dealer stands on 17,
      blackjack pays 3:2, double down on the first two cards)
    * Data Boxes: Brawl-Stars style loot boxes — buy with coins, tap to crack

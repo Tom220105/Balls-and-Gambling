@@ -1,4 +1,4 @@
-# Neon Sigil: Balls and Gambling
+# Balls & Gambling
 
 A neon cyber brick breaker with 5 modes (Classic, Survival, Funky Balls, RPG, Neon Bubbles) and a Cyber-Lottery.
 It runs in the browser on PC, tablet and phone. You don't need to install anything.
@@ -30,7 +30,7 @@ The game works upright and sideways. On a phone or tablet the controls are:
 | Classic / Survival | Drag your finger anywhere (best in the free space below the arena) to move the pad, tap to launch the ball |
 | Funky Balls | Drag to aim, let go to fire. Drag near the gun to move it. FAST and RECALL buttons while the balls fly |
 | Neon Bubbles | Drag to aim, let go to shoot. Tap the next bubble to swap |
-| RPG | Drag back and let go to sling a hero. Tap a hero card to arm HYPER |
+| RPG | Drag back and let go to sling a hero. Tap a hero card to arm HYPER. In the formation, drag a hero onto another spot to change the order (1 shoots first) |
 
 The **pause button** is on the left side while you play.
 

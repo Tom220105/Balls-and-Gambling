@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Neon Sigil</title>
+  <title>Balls &amp; Gambling</title>
   <meta name="description" content="Cyber brick breaker with Funky Balls, an RPG, Neon Bubbles and the Cyber-Lottery. Runs in the browser on PC, tablet and phone.">
   <!-- phones: add to home screen = fullscreen app (manifest.webmanifest, js/mobil.js) -->
   <meta name="theme-color" content="#04020d">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Neon Sigil">
+  <meta name="apple-mobile-web-app-title" content="Balls &amp; Gambling">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -303,7 +303,7 @@
         <div class="wallet tokens" title="Tokens"><i class="token-icon"></i><span class="tokens-val">0</span></div>
       </div>
       <div class="kicker">// CYBER BRICK BREAKER //</div>
-      <h1 class="glitch" data-text="NEON SIGIL">NEON SIGIL</h1>
+      <h1 class="glitch game-title" data-text="BALLS &amp;&#10;GAMBLING">BALLS &amp;<br>GAMBLING</h1>
       <p class="tagline">Breach the firewall. Shatter the sigil. Take down the Sentinel.</p>
       <div class="menu-buttons">
         <button id="btn-start" class="btn">&#9654; PLAY</button>
@@ -375,7 +375,6 @@
   <!-- RPG mode: AFK hub, formation, battle, heroes -->
   <section id="screen-rpg" class="rpg-screen hidden" data-view="hub">
     <div class="rpg-canvas" id="rpg-canvas"></div>
-    <div class="rpg-layer" id="rpg-bars"></div>
     <div class="rpg-layer" id="rpg-pops"></div>
     <header class="rpg-top">
       <button class="btn-back" id="rpg-back">&#8249; BACK</button>
@@ -417,15 +416,22 @@
       </div>
     </div>
 
+    <!-- formation: the 4 heroes in battle order (drag to swap), your heroes below (js/rpg.js) -->
     <div class="rpg-view hidden" id="rpg-form">
-      <div class="form-vs">
-        <div class="fp mine"><span>YOUR POWER</span><b id="form-pw">0</b></div>
-        <div class="vs">VS</div>
-        <div class="fp foe"><span>ENEMY POWER</span><b id="form-pw-foe">0</b></div>
+      <div class="form-info">
+        <div class="form-stage" id="form-stage">SECTOR 1-1</div>
+        <div class="form-vs">
+          <div class="fp mine"><span>YOU</span><b id="form-pw">0</b></div>
+          <div class="vs">VS</div>
+          <div class="fp foe"><span>ENEMY</span><b id="form-pw-foe">0</b></div>
+        </div>
       </div>
-      <div class="form-stage" id="form-stage">SECTOR 1-1</div>
+      <div class="form-lineup-wrap">
+        <div class="form-lineup" id="form-lineup"></div>
+        <div class="form-lineup-hint">DRAG TO SWAP &middot; TAP TO REMOVE &middot; <b>1</b> SHOOTS FIRST</div>
+      </div>
       <div class="form-panel">
-        <div class="form-head"><span>SELECT HEROES <b id="form-count">0 / 4</b></span><span class="form-hint" id="form-hint"></span><div class="form-filter" id="form-filter"></div></div>
+        <div class="form-head"><span>YOUR HEROES <b id="form-count">0 / 4</b></span><span class="form-hint" id="form-hint"></span><div class="form-filter" id="form-filter"></div></div>
         <div class="form-roster" id="form-roster"></div>
         <button class="rpg-begin" id="rpg-begin">BEGIN BATTLE</button>
       </div>

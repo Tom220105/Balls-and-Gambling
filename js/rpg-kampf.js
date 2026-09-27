@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — RPG marble battles
+   BALLS & GAMBLING — RPG marble battles
    The fights of the RPG mode, played on the Funky Balls map in the spirit of
    Hyper Heroes / Monster Strike:
    * your 4 heroes are balls on the field. Every turn one of them is slung:
@@ -36,13 +36,25 @@
   // ---------------------------------------------------------------- field
   const XW = K.HALF_W;               // side walls
   const ZT = K.TOP_Z;                // top wall (the Sentinel's gate)
-  const ZB = K.PADDLE_Z + 1.4;       // hardlight barrier at the bottom
+  // hardlight barrier at the bottom. On the longer phone arena (js/spiel.js ARENA_EXTRA) it sits
+  // right above the hero cards (about 150 px at the bottom of the screen, the top bar about 56 px);
+  // below it the cards cover the arena floor. 0.93: px per unit of depth vs. of width on that camera.
+  const ZB = (() => {
+    const base = K.PADDLE_Z + 1.4;
+    if (!K.EXTRA) return base;
+    const w = Math.min(window.innerWidth, window.innerHeight), h = Math.max(window.innerWidth, window.innerHeight);
+    const px = (w / (2 * K.HALF_W + 0.7)) * 0.93;
+    return Math.min(base, (h - 206) / px - 21.8);
+  })();
+  const FIELD_K = (ZB - ZT) / 33.4;  // how much longer the field is than on the classic arena
+  const LOW = (ZB - ZT - 33.4) / 2;  // enemies and the boss start this much further down
   const HERO_R = 1.05;
   // Sling physics: every hero has a SPD stat (BOUNCE ~500+, PIERCE ~350+). A full-power
   // sling starts at SPD × SPD_UNIT units/s — a 500 SPD ball crosses the arena in a
   // blink and ricochets all over it. It loses speed at a steady rate (DECEL) plus a
   // little drag, so every shot still settles with a crisp stop after about 3 s.
-  const SPD_UNIT = 0.44, DECEL = 70, DRAG = 0.05, STOP = 0.8;
+  // (a longer field gets slightly faster slings, so a shot still reaches as many enemies)
+  const SPD_UNIT = 0.44 * Math.sqrt(FIELD_K), DECEL = 70, DRAG = 0.05, STOP = 0.8;
   const WALL_BOUNCE = 0.99, ENEMY_BOUNCE = 0.97, PIERCE_KEEP = 0.985;
   // With that many contacts per shot, a single hit deals a share of ATK
   // (PIERCE hits fewer times, so each of its hits counts more).
@@ -709,11 +721,11 @@
     list.forEach((spec, n) => {
       const boss = spec.kind === 'boss';
       const r = boss ? 2.5 : spec.kind === 'virus' ? 0.95 : 1.25;
-      let x = 0, z = -9.5;
+      let x = 0, z = -9.5 + LOW * 0.6;
       if (!boss) {
         for (let tries = 0; tries < 80; tries++) {
           x = lerp(-XW + r + 1.2, XW - r - 1.2, rnd());
-          z = lerp(ZT + r + 2.5, 2, rnd());
+          z = lerp(ZT + r + 2.5, 2 + LOW * 1.6, rnd());
           const ok = placed.every((p) => Math.hypot(p.x - x, p.z - z) > p.r + r + 1.6) &&
             st.heroes.every((h) => Math.hypot(h.x - x, h.z - z) > h.r + r + 2);
           if (ok) break;
@@ -2820,6 +2832,10 @@
     st.keyAim = false;
     st.kAim = -Math.PI / 2;
     $('mb-labels').innerHTML = '';
+    // phones and tablets: the hint sits with the hero cards at the bottom (js/mobil.js platform)
+    const bottom = document.querySelector('#mb-hud .mb-bottom');
+    if (NEON.platform && NEON.platform !== 'pc') bottom.prepend($('mb-hint'));
+    else $('mb-hud').appendChild($('mb-hint'));
     st.heroes = (o.team || []).slice(0, 4).map((spec, i) => makeHero(spec, i));
     st.teamMax = st.heroes.reduce((s, h) => s + h.hp, 0);
     st.teamHp = st.teamMax;
@@ -2917,6 +2933,10 @@
     else if (k === 'f' || k === 'F') { setSpeed(SPEEDS[(SPEEDS.indexOf(st.speed) + 1) % SPEEDS.length]); C.sfx.click(); }
   });
 
-  NEON.marble = { start, stop, update, pointerDown, pointerUp, fire, best: () => 0 };
+  NEON.marble = {
+    start, stop, update, pointerDown, pointerUp, fire, best: () => 0,
+    // for the phone camera (js/spiel.js): the field ends at the barrier, the hero cards stay free
+    frame: { bottom: ZB + 0.6, ui: ['#mb-hud .mb-bottom'] },
+  };
   if (BOT) NEON.marble.debug = { st, triggerCombo };   // test autopilot hook
 })();

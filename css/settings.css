@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — settings screen, FPS counter, reset dialog
+   BALLS & GAMBLING — settings screen, FPS counter, reset dialog
    ========================================================================== */
 .settings-btn { min-width: 0; margin-top: 12px; padding: 10px 26px; font-size: 13px; }
 #btn-settings-sys svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — 3D models shared by the game, the collection and the lottery:
+   BALLS & GAMBLING — 3D models shared by the game, the collection and the lottery:
    ball skins, bouncepads, data boxes, coins, the neon environment map, and a
    small second renderer ("stage3d") that draws previews inside the menus.
    ========================================================================== */

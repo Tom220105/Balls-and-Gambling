@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — RPG mode ("NEURAL ARENA")
+   BALLS & GAMBLING — RPG mode ("NEURAL ARENA")
    ========================================================================== */
 :root {
   --xp-svg: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><polygon points='12,1 22,7 22,17 12,23 2,17 2,7' fill='%230a3a4a' stroke='%2319e6ff' stroke-width='1.6'/><path d='M7 8l3 4-3 4M17 8l-3 4 3 4' stroke='%23dffbff' stroke-width='2' fill='none'/></svg>");
@@ -210,42 +210,6 @@ body.rpg-open #help-btn { display: none; }
 .battle-btn em i { font-style: normal; font-family: var(--font-mono); font-size: 13px; }
 .battle-btn.risky em::after { content: '  ⚠ TOUGH'; color: #fff3a0; }
 
-/* ------------------------------------------------------------ unit bars */
-.ub {
-  position: absolute;
-  left: 0; top: 0;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  will-change: transform;
-}
-.ub-lv {
-  min-width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  padding: 0 3px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: #fff;
-  border: 1px solid var(--cyan);
-  border-radius: 50%;
-  background: rgba(4, 2, 13, 0.85);
-}
-.ub.foe .ub-lv { border-color: var(--red); }
-.ub-bars { display: flex; flex-direction: column; gap: 2px; width: 60px; }
-.ub.boss .ub-bars { width: 110px; }
-.ub-hp, .ub-en { position: relative; display: block; overflow: hidden; background: rgba(4, 2, 13, 0.85); border: 1px solid rgba(0, 0, 0, 0.6); }
-.ub-hp { height: 7px; }
-.ub-en { height: 4px; }
-.ub-hp b, .ub-en b, .ub-hp s { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.12s; }
-.ub-hp b { background: linear-gradient(180deg, #9dff6a, #2fc24a); }
-.ub.foe .ub-hp b { background: linear-gradient(180deg, #ff8a6a, #e0203a); }
-.ub-hp s { background: rgba(230, 250, 255, 0.85); }
-.ub-en b { background: linear-gradient(90deg, #ffc933, #fff3a0); }
-.ub.full .ub-en b { box-shadow: 0 0 8px var(--gold); animation: en-full 0.6s steps(2) infinite; }
-@keyframes en-full { 50% { filter: brightness(1.6); } }
-
 /* -------------------------------------------------------- combat text */
 .rp-pop {
   position: absolute;
@@ -434,38 +398,63 @@ body.rpg-open #help-btn { display: none; }
 .hcard.locked:hover { transform: none; filter: none; }
 
 /* ------------------------------------------------------------ formation */
-.form-vs {
-  position: absolute;
-  left: 50%;
-  top: 88px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  pointer-events: none;
-}
-.fp { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 16px; background: rgba(4, 2, 13, 0.6); }
+/* stage and power on top, the 4 heroes in battle order in the middle (drag to swap),
+   your heroes and BEGIN BATTLE at the bottom (js/rpg.js renderLineup) */
+#rpg-form { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 92px 20px 16px; }
+#rpg-form.hidden { display: none; }
+.form-info { display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none !important; }
+.form-stage { font-family: var(--font-head); font-size: 11px; letter-spacing: 0.3em; color: var(--gold); text-align: center; }
+.form-vs { display: flex; align-items: center; gap: 12px; }
+.fp { display: flex; align-items: baseline; gap: 8px; padding: 5px 14px; background: rgba(4, 2, 13, 0.7); }
 .fp span { font-family: var(--font-head); font-size: 9px; letter-spacing: 0.3em; color: var(--dim); }
-.fp b { font-family: var(--font-mono); font-size: 24px; }
+.fp b { font-family: var(--font-mono); font-size: 22px; }
 .fp.mine b { color: var(--cyan); text-shadow: 0 0 10px var(--cyan); }
 .fp.foe b { color: #ff6a7a; text-shadow: 0 0 10px var(--red); }
-.form-vs .vs { font-family: var(--font-head); font-weight: 900; font-size: 42px; color: var(--gold); text-shadow: 0 0 14px var(--gold), 0 0 34px #ff7a1a; }
-.form-stage {
-  position: absolute;
-  left: 50%;
-  top: 160px;
-  transform: translateX(-50%);
-  font-family: var(--font-head);
-  font-size: 11px;
-  letter-spacing: 0.4em;
-  color: var(--gold);
-  pointer-events: none;
+.form-vs .vs { font-family: var(--font-head); font-weight: 900; font-size: 24px; color: var(--gold); text-shadow: 0 0 14px var(--gold), 0 0 34px #ff7a1a; }
+
+.form-lineup-wrap { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.form-lineup { width: min(640px, 100%); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; touch-action: none; }
+.lu-slot {
+  --rc: #19e6ff;
+  --fc: #19e6ff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 4px 10px;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  border: 1px solid color-mix(in srgb, var(--rc) 60%, transparent);
+  background:
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--fc) 32%, transparent), transparent 70%),
+    rgba(8, 4, 24, 0.85);
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--rc) 30%, transparent);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: transform 0.12s, filter 0.12s, opacity 0.12s;
 }
+.lu-slot.empty { cursor: default; border-style: dashed; border-color: rgba(138, 134, 184, 0.5); background: rgba(8, 4, 24, 0.6); box-shadow: none; }
+.lu-n { position: absolute; left: 7px; top: 4px; font-family: var(--font-head); font-weight: 900; font-size: 17px; color: #fff; text-shadow: 0 0 8px var(--rc); }
+.lu-x { position: absolute; right: 7px; top: 5px; font-size: 12px; color: var(--dim); }
+.lu-ball { width: min(104px, 86%); aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; }
+.lu-ball img { width: 116%; height: 116%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.lu-ball i { font-style: normal; font-family: var(--font-head); font-size: 34px; color: var(--dim); }
+.lu-name { max-width: 100%; overflow: hidden; font-family: var(--font-head); font-size: 10px; letter-spacing: 0.06em; text-overflow: ellipsis; white-space: nowrap; }
+.lu-type { font-family: var(--font-head); font-size: 8px; letter-spacing: 0.1em; color: var(--dim); text-align: center; }
+.lu-type.bounce { color: #19e6ff; }
+.lu-type.pierce { color: #ff8a1f; }
+.lu-slot.lifted { opacity: 0.3; }
+.lu-slot.over { transform: scale(1.06); filter: brightness(1.45); border-color: #fff; }
+.lu-ghost { position: fixed; left: 0; top: 0; z-index: 90; width: 96px; pointer-events: none; filter: drop-shadow(0 0 14px var(--rc)); }
+.form-lineup-hint { font-family: var(--font-head); font-size: 9px; letter-spacing: 0.2em; color: var(--dim); text-align: center; pointer-events: none !important; }
+.form-lineup-hint b { color: #fff; }
+
 .form-panel {
-  position: absolute;
-  left: 20px; right: 20px; bottom: 16px;
+  width: min(1100px, 100%);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
   gap: 10px 16px;
   padding: 12px 14px;
@@ -476,9 +465,9 @@ body.rpg-open #help-btn { display: none; }
 .form-head { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .form-head > span:first-child { font-family: var(--font-head); font-size: 11px; letter-spacing: 0.3em; color: var(--dim); }
 .form-head b { font-family: var(--font-mono); font-size: 14px; color: #fff; letter-spacing: 0.05em; }
-.form-hint { font-size: 12px; color: var(--dim); }
-.form-hint b { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-head); font-size: 10px; letter-spacing: 0.15em; }
-.form-hint svg { width: 13px; height: 13px; fill: currentColor; }
+.form-hint { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-head); font-size: 9px; letter-spacing: 0.15em; color: var(--dim); }
+.form-hint b { display: inline-flex; align-items: center; }
+.form-hint svg { width: 16px; height: 16px; fill: currentColor; }
 .form-filter { margin-left: auto; display: flex; gap: 6px; }
 .form-filter button {
   --c: #fff;
@@ -1205,12 +1194,22 @@ body.rpg-open #help-btn { display: none; }
   .rpg-dock { left: 10px; right: 10px; bottom: 10px; grid-template-columns: 1fr 1fr; }
   .afk-chest { grid-column: 1 / -1; }
   .dock-btn { min-width: 0; padding: 10px 12px; font-size: 11px; }
-  .form-vs { top: 118px; gap: 10px; }
-  .form-vs .vs { font-size: 28px; }
-  .fp b { font-size: 18px; }
-  .form-stage { top: 184px; }
-  .form-panel { left: 10px; right: 10px; bottom: 10px; grid-template-columns: 1fr; }
-  .form-filter { margin-left: 0; }
+  /* formation: the coins row is hidden there, so the header is one row */
+  .rpg-screen[data-view="form"] .rpg-wallets { display: none; }
+  #rpg-form { padding: 64px 10px 10px; gap: 8px; }
+  .form-vs { gap: 8px; }
+  .fp { padding: 4px 10px; }
+  .fp b { font-size: 17px; }
+  .form-vs .vs { font-size: 18px; }
+  .form-lineup { gap: 6px; }
+  .lu-slot { padding: 10px 2px 8px; }
+  .lu-name { font-size: 9px; letter-spacing: 0.02em; }
+  .lu-type { font-size: 7px; letter-spacing: 0.05em; }
+  .form-panel { grid-template-columns: 1fr; gap: 8px; padding: 10px; }
+  .form-roster { min-height: 0; gap: 8px; }
+  .form-roster .hcard { width: 78px; height: 98px; }
+  .form-roster .hcard img { width: 80px; height: 80px; }
+  .rpg-begin { width: 100%; padding: 14px 20px; font-size: 16px; }
   .hero-roster-wrap { left: 10px; right: 10px; bottom: auto; top: 130px; }
   .hero-roster { max-height: 120px; }
   .hero-panel { left: 10px; right: 10px; width: auto; top: auto; bottom: 10px; max-height: 46%; }

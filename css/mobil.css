@@ -1,4 +1,4 @@
-/* NEON SIGIL — phones & tablets
+/* BALLS & GAMBLING — phones & tablets
    Touch hints, the pause button, the Funky Balls touch buttons and layout
    fixes for small screens. body.touch and body.no-fs come from js/mobil.js. */
 
@@ -99,6 +99,8 @@ body.playing #btn-pause { display: grid; }
   #fb-hud .hud-right { display: flex; flex-direction: column; align-items: flex-end; }
   #fb-hud .hud-coins { margin-top: 0; }
   body.touch #fb-speed { bottom: 140px; }
+  /* the longer arena reaches the bottom: the Funky Balls hint sits above the gun */
+  body:not(.pf-pc) #fb-hint { bottom: 15%; }
 }
 
 @media (max-width: 520px) {
@@ -109,13 +111,21 @@ body.playing #btn-pause { display: grid; }
   .mb-speed { right: 8px; top: 10px; padding: 3px; }
   .mb-speed span { display: none; }
   .mb-speed button { min-width: 34px; padding: 6px; }
-  /* the hint moves from the top of the arena down to the hero cards */
-  .mb-hint { top: auto; bottom: 150px; padding: 0 10px; }
-  /* Neon Bubbles: the "?" moves down so it doesn't cover the goal counter */
+  /* the hero cards use the whole width, the arena ends right above them */
+  .mb-bottom { left: 8px; right: 8px; bottom: 8px; transform: none; gap: 6px; }
+  .mb-team { gap: 8px; }
+  .mb-hpbar { width: 100%; }
+  /* Neon Bubbles: the arena reaches the bottom now, the "?" sits in the top right corner */
   .bb-top { gap: 8px; padding: 6px 10px; }
   .bb-bar { width: 110px; }
-  .bb-help { top: auto; bottom: 14px; right: 14px; }
+  .bb-help { top: 8px; right: 8px; width: 34px; height: 34px; font-size: 16px; }
 }
+
+/* phones and tablets: the RPG hint sits with the hero cards (js/rpg-kampf.js moves it there) */
+.mb-bottom .mb-hint { position: static; width: 100%; min-height: 2.6em; padding: 0 6px; font-size: 10px; line-height: 1.3; }
+/* phones and tablets: the controls are explained on the first tutorial card and behind "?" */
+body:not(.pf-pc) .bb-hint { display: none !important; }
+body:not(.pf-pc) .bb-shots span { display: none; }
 
 /* ------------------------------------------ small screens, both ways */
 @media (max-width: 860px), (orientation: landscape) and (max-height: 500px) {
@@ -171,7 +181,7 @@ body.playing #btn-pause { display: grid; }
   .screen { padding-left: 62px; }
   .title-panel { padding: 12px 24px; }
   .title-panel .title-wallet { margin: 0 0 4px; }
-  .title-panel h1 { margin: 4px 0; font-size: 42px; }
+  .title-panel h1 { margin: 4px 0; font-size: 30px; }
   .title-panel .tagline { display: none; }
   .title-panel .btn { padding: 10px 18px; }
   .title-panel .menu-row { margin-top: 8px; }
@@ -230,7 +240,19 @@ body.playing #btn-pause { display: grid; }
   .dock-btn { min-width: 0; padding: 9px 12px; }
   .battle-btn { padding: 8px 14px; }
   .battle-btn .bb-label { font-size: 20px; }
-  .form-panel { left: 62px; }
+  /* RPG formation: one compact screen, the round buttons stay free on the left */
+  .rpg-screen[data-view="form"] .rpg-wallets { display: none; }
+  #rpg-form { padding: 52px 12px 8px 62px; gap: 6px; }
+  .form-info { flex-direction: row; gap: 14px; }
+  .form-lineup { width: min(520px, 100%); gap: 8px; }
+  .lu-slot { padding: 6px 2px 5px; gap: 2px; }
+  .lu-ball { width: min(62px, 80%); }
+  .form-lineup-hint { display: none; }
+  .form-panel { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 10px; gap: 6px 12px; }
+  .form-roster { min-height: 0; padding: 2px 2px 4px; }
+  .form-roster .hcard { width: 70px; height: 86px; }
+  .form-roster .hcard img { width: 70px; height: 70px; }
+  .rpg-begin { width: auto; padding: 12px 18px; font-size: 14px; }
   /* RPG heroes: list on the left, details on the right (like on PC) */
   .hero-roster-wrap { left: 62px; right: calc(50% + 4px); top: 58px; bottom: 10px; display: flex; flex-direction: column; }
   .hero-roster { flex: 1; min-height: 0; max-height: none; align-content: flex-start; }
@@ -247,6 +269,7 @@ body.playing #btn-pause { display: grid; }
   .mb-hpbar { width: 134px; grid-template-columns: 1fr; gap: 2px; }
   .mb-hp-label { font-size: 8px; }
   .mb-hp-text { font-size: 11px; }
+  .mb-bottom .mb-hint { width: 134px; min-height: 0; font-size: 8px; }
 }
 
 /* collection: level and stars of a hero card */

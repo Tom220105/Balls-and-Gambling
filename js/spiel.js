@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — a 3D cyber brick breaker
+   BALLS & GAMBLING — a 3D cyber brick breaker
    --------------------------------------------------------------------------
    Rendering : three.js r147 classic build (runs from file://)
                HDR + 4x MSAA post pipeline, bloom, neon environment reflections,
@@ -95,7 +95,20 @@
   const HALF_W = (COLS * CELL_W) / 2;   // inner half-width of the arena
   const TOP_Z = -20;                    // inner face of the top wall
   const ROW0_Z = TOP_Z + 2.6;           // centre of the first brick row
-  const PADDLE_Z = 12;
+  // Phones are held upright and their screens are much taller than the arena. There the
+  // arena gets longer (ARENA_EXTRA units) so it reaches down to the bottom of the screen.
+  // Everything below the bricks follows PADDLE_Z: the pad, the Funky Balls line, the bubble
+  // gun, the RPG field. Worked out once from the screen size (as if the phone is upright);
+  // choosing another device in the settings reloads the game (js/mobil.js).
+  const ARENA_EXTRA = (() => {
+    const pf = NEON.platform || (NEON.mobile ? 'phone' : 'pc');
+    const w = Math.min(window.innerWidth, window.innerHeight), h = Math.max(window.innerWidth, window.innerHeight);
+    if (pf !== 'phone' || h < w * 1.5) return 0;
+    const px = (w / (COLS * CELL_W + 0.7)) * 0.93;  // px per unit of depth when the playfield fills the width
+    const depth = (h - 64 - 30) / px;               // HUD on top, a little room at the bottom
+    return Math.max(0, Math.min(16, Math.round(depth - 37.9)));   // 37.9 = depth of the classic arena
+  })();
+  const PADDLE_Z = 12 + ARENA_EXTRA;
   const PADDLE_HD = 0.36;
   const SHIELD_Z = PADDLE_Z + 1.6;
   const LOSE_Z = PADDLE_Z + 3.2;
@@ -112,7 +125,7 @@
   const DRONE_R = 0.62;
   const CHIN = { x: 0, z: TOP_Z + 0.6, hw: 2.5, hd: 0.6 };   // Sentinel jaw — solid for the ball
   const PORTAL_X = 8.6;
-  const SIGIL_Z = -1;
+  const SIGIL_Z = -1 + ARENA_EXTRA / 2;   // the magic circle stays in the middle of the field
   const DROP_CHANCE = 0.11;
   const COIN_CHANCE = 0.12;
   const TS = 2;               // canvas-texture supersampling
@@ -245,13 +258,19 @@
   // ======================================================= renderer & scene
   const stage = $('stage');
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-  const MAX_PR = Math.min(window.devicePixelRatio || 1, 2);
   // the device the player picked on the first start (js/mobil.js): 'pc' | 'phone' | 'tablet'
   const platform = () => NEON.platform || (NEON.mobile ? 'phone' : 'pc');
   const handheld = () => platform() !== 'pc';
-  // render resolution per quality setting ('auto' starts sharp and steps down when the frame rate sags)
-  const QUALITY_PR = { auto: MAX_PR, high: MAX_PR, medium: Math.min(MAX_PR, 1.25), low: Math.min(MAX_PR, 1) * 0.8 };
-  const qualityPr = (q) => QUALITY_PR[q] || MAX_PR;
+  // Render resolution: phones and tablets use the full sharpness of their screen (up to 3x,
+  // an iPhone is 3x), PC up to 2x. 'auto' starts there and steps down when the frame rate sags.
+  const DPR = window.devicePixelRatio || 1;
+  const maxPr = () => Math.min(DPR, handheld() ? 3 : 2);
+  function qualityPr(q) {
+    const max = maxPr();
+    if (q === 'medium') return Math.min(max, handheld() ? 2 : 1.25);
+    if (q === 'low') return handheld() ? Math.min(max, 1.5) : Math.min(max, 1) * 0.8;
+    return max;   // auto and high
+  }
   const quality = { pr: qualityPr(settings.quality), reflect: settings.reflect && settings.quality !== 'low', acc: 0, frames: 0, last: 0 };
   renderer.setPixelRatio(quality.pr);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -286,6 +305,7 @@
       uGlitch: { value: 0 },
       uRes: { value: new THREE.Vector2(1, 1) },
       uGain: { value: 1 },    // overall brightness (phones and the RPG get a bit more)
+      uCA: { value: 1 },      // colour fringes at the screen edges (almost off on small screens)
       uVig: { value: 0.45 },  // how much the vignette darkens the corners
     },
     vertexShader: /* glsl */`
@@ -297,6 +317,7 @@
       uniform float uGlitch;
       uniform vec2 uRes;
       uniform float uGain;
+      uniform float uCA;
       uniform float uVig;
       varying vec2 vUv;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -313,7 +334,7 @@
           uv.x += step(1.0 - g * 0.5, n) * (hash(vec2(band * 1.7, uTime)) - 0.5) * 0.08 * g;
         }
         vec2 d = uv - 0.5;
-        float ca = dot(d, d) * 0.012 + g * 0.012;
+        float ca = dot(d, d) * 0.012 * uCA + g * 0.012;
         vec3 col;
         col.r = texture2D(tDiffuse, uv - d * ca).r;
         col.g = texture2D(tDiffuse, uv).g;
@@ -333,8 +354,7 @@
   // anti-aliased edges (the canvas' own antialias flag is lost in post-processing).
   const composerTarget = new THREE.WebGLRenderTarget(1, 1, {
     type: HDR ? THREE.HalfFloatType : THREE.UnsignedByteType,
-    // 4x MSAA on PC; phones render at a lower resolution and aim for 90 / 120 FPS, 2x is enough there
-    samples: caps.isWebGL2 ? (platform() === 'phone' ? 2 : 4) : 0,
+    samples: caps.isWebGL2 ? 4 : 0,
   });
   const composer = new THREE.EffectComposer(renderer, composerTarget);
   composer.setPixelRatio(quality.pr);
@@ -4058,6 +4078,17 @@
     const r = el && el.getBoundingClientRect();
     return r && r.height ? r.bottom + 6 : Math.round(h * 0.05);
   }
+  // the top edge of the first visible element of a mode's bottom HUD (hero cards, SURGE bar ...)
+  function uiTop(selectors, h) {
+    let top = h;
+    selectors.forEach((sel) => {
+      const el = document.querySelector(sel);
+      const r = el && el.getBoundingClientRect();
+      if (r && r.height > 0) top = Math.min(top, r.top - 4);
+    });
+    return top;
+  }
+
   function frameHandheld(aspect, w, h) {
     const t = clamp((aspect - 0.55) / 0.75, 0, 1);            // 0 upright phone … 1 sideways
     const pitch = THREE.MathUtils.degToRad(lerp(76, 60, t));  // how steep the camera looks down
@@ -4066,6 +4097,12 @@
     fitCam.aspect = aspect;
     const side = HALF_W + lerp(0.35, WALL_T + 0.8, t);        // upright: the inner playfield, the walls may be cut
     const topLimit = 1 - (2 * hudBottom(w, h)) / h;
+    // a mode may end its field above the arena's edge and keep buttons at the bottom of the
+    // screen (js/rpg-kampf.js, js/bubbles.js): the field then ends right above those buttons
+    const ext = extMode();
+    const fr = (ext && ext.frame) || {};
+    const fieldBottom = fr.bottom != null ? fr.bottom : BOTTOM_Z;
+    const bottomLimit = 1 - (2 * (fr.ui ? uiTop(fr.ui, h) : h)) / h;
     const place = (lookZ) => {
       fitCam.position.set(0, 0, lookZ).add(fitDir);
       fitCam.lookAt(0, 0, lookZ);
@@ -4084,8 +4121,8 @@
         if (ndc(0, WALL_H, TOP_Z - WALL_T).y > topLimit) hi = mid; else lo = mid;
       }
       place(lo);
-      if (Math.abs(ndc(side, 0, BOTTOM_Z).x) > 1 || Math.abs(ndc(side, 0, TOP_Z).x) > 1) continue;
-      if (ndc(0, 0, BOTTOM_Z).y < -1) continue;
+      if (Math.abs(ndc(side, 0, fieldBottom).x) > 1 || Math.abs(ndc(side, 0, TOP_Z).x) > 1) continue;
+      if (ndc(0, 0, fieldBottom).y < bottomLimit) continue;
       CAM_LOOK.set(0, 0, lo);
       CAM_POS.copy(CAM_LOOK).add(fitDir);
       return fov;
@@ -4132,9 +4169,10 @@
   }
   window.addEventListener('resize', resize);
 
-  // Adaptive quality: if the frame rate sags below 45 FPS, lower the render resolution
-  // in steps and switch the mirror floor off. Phones and tablets keep a sharp picture
-  // (at least 1.5x) and only go lower when the game really stutters (below 32 FPS).
+  // Adaptive quality: if the frame rate sags below 45 FPS, make the picture cheaper in steps.
+  // PC: lower the render resolution first (down to 1x), then switch the mirror floor off.
+  // Phones and tablets keep a sharp picture: the mirror floor goes first, then the resolution
+  // in small steps, never below 2x (1.5x only when the game really stutters, below 30 FPS).
   function monitorQuality(realDt) {
     if (DEBUG.hq || settings.quality !== 'auto' || menuOpen || document.hidden || realDt > 0.25) return;
     quality.acc += realDt;
@@ -4144,7 +4182,13 @@
     quality.acc = 0;
     quality.frames = 0;
     if (avg < 1 / 45) return;
-    const floor = handheld() && avg < 1 / 32 ? 1.5 : 1;
+    const hh = handheld();
+    if (hh && reflector && quality.reflect) {
+      quality.reflect = false;
+      reflector.visible = false;
+      return;
+    }
+    const floor = hh ? Math.min(maxPr(), avg > 1 / 30 ? 1.5 : 2) : 1;
     if (quality.pr > floor + 0.01) {
       quality.pr = Math.max(floor, quality.pr - 0.25);
       resize();
@@ -4179,9 +4223,12 @@
   };
   // the player picked a device (start question or settings, js/mobil.js):
   // camera, render resolution and frame-rate target follow right away
+  const LOADED_AS_PHONE = platform() === 'phone';
   window.addEventListener('neon-platform', (e) => {
     // a phone gets the mirror floor off the first time: it costs a lot of FPS
     if (e.detail && e.detail.first && platform() === 'phone') NEON.settings.set('reflect', false);
+    // the phone arena is longer (ARENA_EXTRA): switching to or from PHONE rebuilds the game
+    if ((platform() === 'phone') !== LOADED_AS_PHONE) { location.reload(); return; }
     quality.pr = qualityPr(settings.quality);
     resize();
   });
@@ -4216,7 +4263,7 @@
   // engine services for js/funky.js (Funky Balls reuses the arena, FX, audio and HUD plumbing)
   NEON.core = {
     scene, camera, refCam,
-    K: { HALF_W, TOP_Z, PADDLE_Z, BALL_R, CHIN, BOTTOM_Z, WALL_H },
+    K: { HALF_W, TOP_Z, PADDLE_Z, BALL_R, CHIN, BOTTOM_Z, WALL_H, EXTRA: ARENA_EXTRA },
     COL,
     emit, burst, spawnRing, spawnDebris, flashLight, addShake, popup, showBanner, noReflect, lightning,
     glowBrickMaterial, circleRect, awardCoins, awardTokens,
@@ -4317,6 +4364,7 @@
     const rpgBoost = game.mode === 'marble' && !game.demo ? 0.12 : 0;
     finalPass.uniforms.uGain.value = (handheld() ? 1.14 : 1) + rpgBoost;
     finalPass.uniforms.uVig.value = handheld() ? 0.2 : 0.45;
+    finalPass.uniforms.uCA.value = handheld() ? 0.15 : 1;
     composer.render();
   }
 })();

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — RPG heroes
+   BALLS & GAMBLING — RPG heroes
    The 26 hero balls of the RPG mode (they only exist there): factions,
    classes, rarities (C … HR), base stats, marble abilities (move type, combo,
    hyper, passive, level 20/40 abilities, level 30 signature relic),

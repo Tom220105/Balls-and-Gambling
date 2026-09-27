@@ -1,11 +1,11 @@
 /* ==========================================================================
-   NEON SIGIL — offline cache (registered by js/mobil.js)
+   BALLS & GAMBLING — offline cache (registered by js/mobil.js)
    Network first: when there is internet you always get the newest version
    from GitHub. Every file that loads is also saved, so the game still starts
    without internet (on the bus, in flight mode ...).
    Change CACHE when files are renamed or removed, so old copies get cleared.
    ========================================================================== */
-const CACHE = 'neon-sigil-v3';
+const CACHE = 'balls-gambling-v4';
 
 const FILES = [
   './',

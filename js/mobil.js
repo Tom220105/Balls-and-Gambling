@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — PC, phone or tablet
+   BALLS & GAMBLING — PC, phone or tablet
    Loaded before the game. On the very first start the player picks the device
    (PC / PHONE / TABLET, changeable later in the settings). The answer sets
    NEON.platform, which the game reads for the camera, the render resolution,

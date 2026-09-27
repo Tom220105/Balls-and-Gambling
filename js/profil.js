@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — player profile
+   BALLS & GAMBLING — player profile
    Coins, owned gear and the equipped loadout, persisted in localStorage.
    Also holds the item catalogue (balls + bouncepads) and rarity tiers.
    ========================================================================== */

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — Collection: browse balls, bouncepads, cyberguns and the RPG
+   BALLS & GAMBLING — Collection: browse balls, bouncepads, cyberguns and the RPG
    heroes, inspect them on a rotating holo-pedestal, read their abilities and
    equip them (heroes are managed in the RPG, the button jumps there).
    ========================================================================== */

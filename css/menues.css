@@ -1,4 +1,4 @@
-/* NEON SIGIL — collection, cyber-lottery, black jack, data boxes, coins */
+/* BALLS & GAMBLING — collection, cyber-lottery, black jack, data boxes, coins */
 
 :root {
   --coin-svg: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><polygon points='6,1.5 18,1.5 23.5,12 18,22.5 6,22.5 0.5,12' fill='%23ffc933' stroke='%23fff3b0' stroke-width='1'/><polygon points='8.5,6 15.5,6 18.5,12 15.5,18 8.5,18 5.5,12' fill='%23e0a010' stroke='%23fff3b0' stroke-width='1.4'/></svg>");
@@ -58,6 +58,9 @@
 
 /* ------------------------------------------------------------ title */
 .title-panel { position: relative; width: min(720px, 100%); }
+/* the game name runs over two lines: BALLS & / GAMBLING (the glitch copies too) */
+.game-title { font-size: clamp(36px, 8vw, 72px); line-height: 1.05; }
+.game-title::before, .game-title::after { white-space: pre-line; }
 .title-wallet { position: absolute; top: 16px; right: 18px; }
 .title-panel .tagline { margin-bottom: 18px; }
 

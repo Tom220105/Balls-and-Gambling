@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — FUNKY BALLS
+   BALLS & GAMBLING — FUNKY BALLS
    --------------------------------------------------------------------------
    A turn-based mode: every brick carries a number (its HP). Your Cybergun
    rides the bottom line — slide it, aim, and fire your whole magazine in one
@@ -30,10 +30,12 @@
 
   // ----------------------------------------------------------- layout
   const COLS = 7;
-  const ROWS = 8;                            // a brick pushed into row 8 touches the line
   const CW = (K.HALF_W * 2) / COLS;          // cell width
   const TOP = K.TOP_Z + 1.4;                 // first row starts below the Sentinel's jaw
   const LINE_Z = K.PADDLE_Z;                 // the rail the Cybergun rides on
+  // a brick pushed into the last row touches the line: 8 rows on the classic arena,
+  // the longer phone arena (js/spiel.js ARENA_EXTRA) gets extra rows of the same size
+  const ROWS = Math.max(8, Math.round((LINE_Z - 2 - TOP) / 3.575));
   const CD = (LINE_Z - 2 - TOP) / ROWS;      // cell depth
   const R = K.BALL_R;
   const BHW = CW / 2 - 0.14, BHD = CD / 2 - 0.14, BH = 1.0;

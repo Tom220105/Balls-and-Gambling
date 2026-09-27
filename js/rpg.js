@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — RPG mode ("NEURAL ARENA")
+   BALLS & GAMBLING — RPG mode ("NEURAL ARENA")
    A marble RPG in the spirit of Hyper Heroes, with the cyber look of the
    rest of the game:
    * HUB: your team races down the NEON RUN highway (js/rpg-idle.js), smashing
@@ -222,21 +222,6 @@
     return Math.round(p / 2);
   }
 
-  // formation: tanks and warriors take the two front slots, everyone else the back row
-  const SLOTS = [[-3.4, -1.8], [-3.4, 1.8], [-7.2, -2.8], [-7.2, 2.8]];
-  function arrange(specs) {
-    const melee = specs.filter((s) => !CLASSES[HERO[s.id].cls].ranged)
-      .sort((a, b) => (HERO[a.id].cls === 'tank' ? 0 : 1) - (HERO[b.id].cls === 'tank' ? 0 : 1));
-    const ranged = specs.filter((s) => CLASSES[HERO[s.id].cls].ranged);
-    const front = melee.slice(0, 2);
-    const back = melee.slice(2).concat(ranged);
-    while (front.length < 2 && back.length > 2) front.push(back.pop());
-    while (back.length > 2) front.push(back.pop());
-    const out = [];
-    front.forEach((s, i) => out.push(Object.assign({ slot: i }, s)));
-    back.forEach((s, i) => out.push(Object.assign({ slot: 2 + i }, s)));
-    return out;
-  }
   const teamSpecs = (ids) => { const s = syncInfo(); return ids.map((id) => ({ id, lvl: effLvl(id, s), stars: state().heroes[id].stars })); };
 
   // ============================================================ textures
@@ -359,7 +344,7 @@
   // ============================================================== arena
   // One stage3d program shared by the hub (idle farm) and the formation preview.
   const W = {
-    mode: 'none', units: [], t: 0, spawnT: 0,
+    mode: 'none',
     camPos: new THREE.Vector3(0, 10, 19), camLook: new THREE.Vector3(0, 0, 0),
   };
   let arena = null;
@@ -370,9 +355,9 @@
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
     const host = $('rpg-canvas');
 
-    scene.add(new THREE.AmbientLight(0x6a5aff, 0.45));
-    scene.add(new THREE.HemisphereLight(0x8a7aff, 0x140a28, 0.55));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+    scene.add(new THREE.AmbientLight(0x6a5aff, 0.65));
+    scene.add(new THREE.HemisphereLight(0x8a7aff, 0x140a28, 0.75));
+    const sun = new THREE.DirectionalLight(0xffffff, 1);
     sun.position.set(4, 14, 10);
     const lc = new THREE.PointLight(0x19e6ff, 2.2, 40); lc.position.set(-11, 5, 5);
     const lm = new THREE.PointLight(0xff3cf2, 2.2, 40); lm.position.set(11, 5, 5);
@@ -440,7 +425,9 @@
     const sigilHolder = new THREE.Group();
     sigilHolder.add(sigil);
     scene.add(sigilHolder);
-    // obelisks around the back half of the platform
+    // obelisks around the back half of the platform (hidden behind the formation line-up)
+    const obelisks = new THREE.Group();
+    scene.add(obelisks);
     for (let i = 0; i < 7; i++) {
       const a = Math.PI + (i / 6) * Math.PI;
       const x = Math.cos(a) * 15, z = Math.sin(a) * 8.5 - 1;
@@ -450,7 +437,7 @@
       strip.position.copy(ob.position);
       const tip = M.glow(i % 2 ? 0xff3cf2 : 0x19e6ff, 2.4, 0.6);
       tip.position.set(x, ob.geometry.parameters.height + 0.4, z);
-      scene.add(ob, strip, tip);
+      obelisks.add(ob, strip, tip);
     }
     // embers drifting up
     const embers = [];
@@ -461,17 +448,6 @@
       scene.add(s);
       embers.push(s);
     }
-
-    // empty-slot markers for the formation view
-    const slotMarks = SLOTS.map(() => {
-      const m = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 6), new THREE.MeshBasicMaterial({
-        color: 0x19e6ff, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false,
-      }));
-      m.rotation.x = -Math.PI / 2;
-      m.visible = false;
-      scene.add(m);
-      return m;
-    });
 
     // ------------------------------------------------------------- fx
     const sparks = [];
@@ -580,7 +556,7 @@
     // camera framing per view (tuned so the DOM panels don't cover the fight)
     const VIEWS = {
       hub: { pos: [0, 12.5, 25], look: [0, -1.6, 0] },
-      form: { pos: [0, 15, 24], look: [0, -1.8, 0.5] },
+      form: { pos: [0, 24, 13], look: [0, -1, -1] },   // looks down on the platform behind the line-up
     };
     const proj = new THREE.Vector3();
     let hostW = 1, hostH = 1;
@@ -593,12 +569,17 @@
       scene, camera, host, toScreen,
       exposure: 1.6,   // the stage3d default (1.35) looked too dark for the RPG
       fx: { spark, ring, beam, slash, shot, flash(x, z, color, k) { flashL.position.set(x, 3, z); flashL.color.setHex(color); flashL.intensity = k; } },
-      slotMarks,
       update(dt) {
         hostW = host.clientWidth || 1;
         hostH = host.clientHeight || 1;
         const v = VIEWS[W.mode] || VIEWS.hub;
-        const k = Math.max(1, 1.45 / camera.aspect);   // back off on narrow screens
+        // back off on narrow screens (on phones only a little: the view is just the backdrop
+        // behind the formation), and push the fog back just as far so nothing turns dark
+        const back = 1.45 / camera.aspect;
+        const k = Math.max(1, NEON.platform && NEON.platform !== 'pc' ? Math.min(back, 1.3) : back);
+        scene.fog.near = 34 * k;
+        scene.fog.far = 95 * k;
+        obelisks.visible = W.mode !== 'form';
         const ease = W.snapCam ? 1 : Math.min(1, dt * 3);
         W.snapCam = false;
         W.camPos.lerp(tmpA.set(v.pos[0], v.pos[1] * k, v.pos[2] * k), ease);
@@ -611,8 +592,6 @@
         }
         camera.lookAt(W.camLook);
         camera.updateMatrixWorld();
-
-        tick(dt);
 
         sigilHolder.rotation.y += dt * 0.05;
         for (const e of embers) {
@@ -654,7 +633,6 @@
           s.m.material.opacity = s.life / s.max;
         }
         flashL.intensity = Math.max(0, flashL.intensity - dt * 10);
-        placeBars();
       },
     };
 
@@ -695,77 +673,11 @@
     return prog;
   }
 
-  // ================================================================ units
-  // Hub (idle farm) and formation preview only — the real fights happen in js/rpg-kampf.js.
-  const barsEl = () => $('rpg-bars');
-
-  function makeUnit(spec, side) {
-    const hero = spec.virus ? null : HERO[spec.id];
-    const s = hero ? heroStats(spec.id, spec.lvl, spec.stars) : { hp: spec.hp, atk: 1, armor: 0, rate: 1.3, range: 1.7, move: 2.2 };
-    const model = hero ? D.makeHeroModel(hero, { boss: spec.boss }) : D.makeVirusModel(0xff2a4d);
-    const base = spec.boss ? 1.6 : 1;
-    model.group.scale.setScalar(base);
-    const root = new THREE.Group();
-    root.add(model.group);
-    const col = side ? 0xff2a4d : 0x19e6ff;
-    const ringMesh = new THREE.Mesh(new THREE.RingGeometry(0.72, 0.88, 40), new THREE.MeshBasicMaterial({
-      color: col, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    ringMesh.rotation.x = -Math.PI / 2;
-    ringMesh.position.y = 0.05;
-    ringMesh.scale.setScalar(base);
-    const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.8, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.04;
-    shadow.scale.setScalar(base);
-    root.add(ringMesh, shadow);
-    let x, z;
-    if (spec.x !== undefined) { x = spec.x; z = spec.z; }
-    else { [x, z] = SLOTS[spec.slot || 0]; if (side) x = -x; }
-    const u = {
-      spec, hero, side, slot: spec.slot || 0, virus: !!spec.virus, boss: !!spec.boss, lvl: spec.lvl || 1, base,
-      color: hero ? hero.look.glow : 0xff2a4d,
-      maxHp: s.hp, hp: s.hp, atk: s.atk, rate: s.rate, range: s.range, move: s.move,
-      ranged: hero ? CLASSES[hero.cls].ranged : false,
-      x, z, homeX: x, homeZ: z, yaw: side ? Math.PI + 0.5 : -0.5,
-      cd: rand(0.3, 1.1), alive: true, target: null, retarget: 0, lunge: 0, dead: 0, bob: rand(0, 6),
-      root, model, ringMesh, bar: null,
-    };
-    root.position.set(x, 0, z);
-    arena.scene.add(root);
-    if (!u.virus) makeBar(u);
-    return u;
-  }
-
-  function makeBar(u) {
-    const el = document.createElement('div');
-    el.className = 'ub ' + (u.side ? 'foe' : 'ally') + (u.boss ? ' boss' : '');
-    el.innerHTML = `<span class="ub-lv">${u.boss ? '☠' : u.lvl}</span><span class="ub-bars"><i class="ub-hp"><b></b></i></span>`;
-    barsEl().appendChild(el);
-    u.bar = { el, hp: el.querySelector('.ub-hp b') };
-  }
-
-  function removeUnit(u) {
-    arena.scene.remove(u.root);
-    if (u.bar) u.bar.el.remove();
-    u.bar = null;
-  }
-
-  function clearUnits() {
-    W.units.forEach(removeUnit);
-    W.units = [];
+  // ================================================================ view
+  // The arena program is the backdrop of the formation view; the real fights happen in js/rpg-kampf.js.
+  function clearFx() {
     if (arena) arena.clearShots();
-    barsEl().innerHTML = '';
     $('rpg-pops').innerHTML = '';
-  }
-
-  function placeBars() {
-    for (const u of W.units) {
-      if (!u.bar) continue;
-      const [sx, sy] = arena.toScreen(u.x, 1.95 * u.base + (u.boss ? 0.3 : 0), u.z);
-      u.bar.el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, -100%)`;
-      u.bar.hp.style.width = (100 * Math.max(0, u.hp) / u.maxHp).toFixed(1) + '%';
-    }
   }
 
   // floating loot pops over the idle highway (u, v = position as a fraction of the view)
@@ -781,33 +693,6 @@
     $('rpg-pops').appendChild(el);
     popCount++;
     setTimeout(() => { el.remove(); popCount--; }, 950);
-  }
-
-  const angWrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
-
-  function animUnit(u, dt) {
-    u.bob += dt;
-    const fx = u.faceX !== undefined ? u.faceX : (u.side ? -1 : 1), fz = (u.faceZ || 0) + 0.55;   // turn a bit toward the camera
-    u.yaw += angWrap(Math.atan2(-fz, fx) - u.yaw) * Math.min(1, dt * 8);
-    u.model.face.rotation.y = u.yaw;
-    u.lunge = Math.max(0, u.lunge - dt * 5);
-    const lx = (u.faceX || 0) * Math.sin(u.lunge * Math.PI) * 0.6, lz = (u.faceZ || 0) * Math.sin(u.lunge * Math.PI) * 0.6;
-    if (!u.alive) {
-      u.dead = Math.min(1, u.dead + dt * 2.2);
-      u.model.group.scale.setScalar(u.base * (1 - u.dead));
-      u.ringMesh.material.opacity = 0.75 * (1 - u.dead);
-      if (u.dead >= 1) u.root.visible = false;
-    } else {
-      u.model.group.position.set(lx, 0.95 * u.base + Math.sin(u.bob * 2.2) * 0.07, lz);
-    }
-    u.model.flash(0);
-    u.model.update(dt, W.t + u.bob);
-    u.root.position.set(u.x, 0, u.z);
-  }
-
-  function tick(dt) {
-    W.t += dt;
-    for (const u of W.units) animUnit(u, dt);
   }
 
   // =========================================================== thumbnails
@@ -984,29 +869,10 @@
   }
 
   function setWorld(mode) {
-    clearUnits();
+    clearFx();
     W.mode = mode;
-    W.t = 0;
     W.shake = 0;
     W.snapCam = true;
-    arena.slotMarks.forEach((m) => { m.visible = false; });
-    if (mode === 'form') buildFormUnits();
-  }
-
-  // formation preview: your 4 heroes against the stage boss and its first-wave escort
-  function buildFormUnits() {
-    clearUnits();
-    const mine = arrange(teamSpecs(form.pick));
-    mine.forEach((s) => W.units.push(makeUnit(s, 0)));
-    const plan = stagePlan(state().stage);
-    W.units.push(makeUnit(Object.assign({ boss: true, x: 5.4, z: 0 }, plan.boss), 1));
-    plan.waves[0].filter((e) => e.kind === 'hero').slice(0, 2)
-      .forEach((e, i) => W.units.push(makeUnit(Object.assign({ x: 9.2, z: i ? 3 : -3 }, e), 1)));
-    const used = mine.map((s) => s.slot);
-    arena.slotMarks.forEach((m, i) => {
-      m.visible = !used.includes(i);
-      m.position.set(SLOTS[i][0], 0.06, SLOTS[i][1]);
-    });
   }
 
   function showView(v) {
@@ -1017,7 +883,7 @@
     $('rpg-title').textContent = titles[v];
     clearInterval(afkTimer);
     if (v === 'heroes') {
-      clearUnits();
+      clearFx();
       W.mode = 'none';
       if (!showcase) showcase = makeShowcase();
       S3.mount($('rpg-canvas'), showcase);
@@ -1025,7 +891,7 @@
       return;
     }
     if (v === 'hub') {
-      clearUnits();
+      clearFx();
       W.mode = 'none';
       mountIdle();
       renderHub();
@@ -1305,10 +1171,89 @@
     $('form-pw').textContent = fmt(form.pick.reduce((s, id) => s + heroPower(id), 0));
     $('form-pw-foe').textContent = fmt(planPower(plan));
     $('form-count').textContent = form.pick.length + ' / ' + TEAM_SIZE;
-    $('form-stage').textContent = 'SECTOR ' + stageLabel(r.stage) + ' · 3 WAVES · BOSS: ' + HERO[plan.boss.id].name;
+    $('form-stage').textContent = 'SECTOR ' + stageLabel(r.stage) + ' · BOSS ' + HERO[plan.boss.id].name;
     $('rpg-begin').disabled = !form.pick.length;
     $('form-hint').innerHTML = factionHint(plan);
+    // the faction filter only helps with a big roster
+    $('form-filter').classList.toggle('hidden', Object.keys(r.heroes).length <= 8);
+    renderLineup();
   }
+
+  // ---------------------------------------------------------- line-up
+  // The 4 heroes in battle order: slot 1 starts on the left and shoots first (js/rpg-kampf.js
+  // START_X). Drag a hero onto another slot to swap them, tap one to take it out of the team.
+  function renderLineup() {
+    const slots = [];
+    for (let i = 0; i < TEAM_SIZE; i++) {
+      const id = form.pick[i];
+      if (!id) {
+        slots.push(`<div class="lu-slot empty" data-i="${i}"><span class="lu-n">${i + 1}</span>` +
+          '<div class="lu-ball"><i>+</i></div><b class="lu-name">EMPTY</b><span class="lu-type">PICK A HERO BELOW</span></div>');
+        continue;
+      }
+      const h = HERO[id], pierce = h.move === 'pierce';
+      slots.push(`<div class="lu-slot" data-i="${i}" data-id="${id}" style="--rc:${rarColor(id)};--fc:${css(FACTIONS[h.faction].color)}">` +
+        `<span class="lu-n">${i + 1}</span><span class="lu-x">✕</span>` +
+        `<div class="lu-ball"><img alt="" draggable="false" src="${thumb(id)}"></div>` +
+        `<b class="lu-name">${h.name}</b><span class="lu-type ${pierce ? 'pierce' : 'bounce'}">${pierce ? '➤ PIERCE' : '⟲ BOUNCE'}</span></div>`);
+    }
+    $('form-lineup').innerHTML = slots.join('');
+  }
+
+  const drag = { id: null, from: -1, x: 0, y: 0, moved: false, ghost: null, over: null, pid: null };
+  const slotAt = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    return el && el.closest ? el.closest('#form-lineup .lu-slot') : null;
+  };
+  function dragEnd(e, drop) {
+    const was = Object.assign({}, drag);   // a copy: drag is reset below
+    if (was.ghost) was.ghost.remove();
+    if (was.over) was.over.classList.remove('over');
+    $('form-lineup').classList.remove('dragging');
+    drag.id = null;
+    drag.ghost = drag.over = null;
+    if (!drop || !was.id) return;
+    if (!was.moved) { togglePick(was.id); return; }   // a tap takes the hero out of the team
+    const target = slotAt(e.clientX, e.clientY);
+    if (!target) { renderLineup(); return; }
+    const to = Math.min(+target.dataset.i, form.pick.length - 1);
+    if (to === was.from) { renderLineup(); return; }
+    const other = form.pick[to];
+    form.pick[to] = was.id;
+    form.pick[was.from] = other;
+    play('equip');
+    renderForm();
+  }
+  $('form-lineup').addEventListener('pointerdown', (e) => {
+    const slot = e.target.closest('.lu-slot');
+    if (!slot || !slot.dataset.id || drag.id) return;
+    e.preventDefault();
+    Object.assign(drag, { id: slot.dataset.id, from: +slot.dataset.i, x: e.clientX, y: e.clientY, moved: false, pid: e.pointerId });
+    try { $('form-lineup').setPointerCapture(e.pointerId); } catch (err) { /* not supported: window events below still work */ }
+  });
+  $('form-lineup').addEventListener('pointermove', (e) => {
+    if (!drag.id || e.pointerId !== drag.pid) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      const src = $('form-lineup').querySelector(`.lu-slot[data-i="${drag.from}"]`);
+      drag.ghost = src.querySelector('.lu-ball').cloneNode(true);
+      drag.ghost.className = 'lu-ball lu-ghost';
+      drag.ghost.style.setProperty('--rc', src.style.getPropertyValue('--rc'));
+      document.body.appendChild(drag.ghost);
+      src.classList.add('lifted');
+      $('form-lineup').classList.add('dragging');
+    }
+    drag.ghost.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%) scale(1.12)`;
+    const over = slotAt(e.clientX, e.clientY);
+    if (over !== drag.over) {
+      if (drag.over) drag.over.classList.remove('over');
+      drag.over = over;
+      if (over && +over.dataset.i !== drag.from) over.classList.add('over');
+    }
+  });
+  $('form-lineup').addEventListener('pointerup', (e) => { if (drag.id && e.pointerId === drag.pid) dragEnd(e, true); });
+  $('form-lineup').addEventListener('pointercancel', (e) => { if (drag.id && e.pointerId === drag.pid) { dragEnd(e, false); renderLineup(); } });
 
   // a small tip: which of your factions hit this stage's heroes harder
   function factionHint(plan) {
@@ -1316,16 +1261,15 @@
     plan.waves.forEach((w) => w.forEach((e) => { if (e.kind !== 'virus') foes.push(HERO[e.id].faction); }));
     const counters = [...new Set(foes.map((f) => FACTION_ORDER.find((k) => FACTIONS[k].beats === f)))].filter(Boolean);
     if (!counters.length) return '';
-    return 'COUNTER PICK: ' + counters.map((k) => `<b style="color:${css(FACTIONS[k].color)}">${FACTIONS[k].icon}${FACTIONS[k].name}</b>`).join(' ') + ' deal +25% damage here';
+    return '+25% DAMAGE: ' + counters.map((k) => `<b style="color:${css(FACTIONS[k].color)}" title="${FACTIONS[k].name}">${FACTIONS[k].icon}</b>`).join(' ');
   }
 
   function togglePick(id) {
     const i = form.pick.indexOf(id);
     if (i >= 0) form.pick.splice(i, 1);
     else if (form.pick.length < TEAM_SIZE) form.pick.push(id);
-    else { toast('THE TEAM IS FULL — TAP A HERO TO REMOVE IT'); play('error'); return; }
+    else { toast('THE TEAM IS FULL — TAP A HERO IN THE LINE-UP TO REMOVE IT'); play('error'); return; }
     play('click');
-    buildFormUnits();
     renderForm();
   }
 
@@ -1600,7 +1544,7 @@
   // hides the RPG screen and hands the renderer back to the main arena
   function leaveScreen() {
     clearInterval(afkTimer);
-    clearUnits();
+    clearFx();
     W.mode = 'none';
     [arena, showcase, idle].forEach((p) => { if (p) S3.unmount(p); });
     $('screen-rpg').classList.add('hidden');
