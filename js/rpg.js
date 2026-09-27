@@ -1653,8 +1653,21 @@
     renderWallet();
   });
 
+  // for the collection screen (js/sammlung.js): which heroes you own, at which level
+  function roster() {
+    const r = state(), sync = syncInfo(), owned = {};
+    Object.keys(r.heroes).forEach((id) => { owned[id] = { lvl: effLvl(id, sync), stars: r.heroes[id].stars }; });
+    return { owned, team: r.team.slice() };
+  }
+  // opens the RPG straight on the HEROES view with this hero selected
+  function openHero(id) {
+    open();
+    if (id && state().heroes[id]) selHero = id;
+    showView('heroes');
+  }
+
   NEON.rpg = {
-    open, close, battleDone, battleOpts, thumb, relicThumb, heroStats, stagePlan, pullHero,
+    open, close, battleDone, battleOpts, thumb, relicThumb, heroStats, stagePlan, pullHero, roster, openHero,
     stageLabel: () => stageLabel(state().stage),
     get stardust() { return state().stardust; },
   };

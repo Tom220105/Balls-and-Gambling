@@ -1089,9 +1089,7 @@
       } catch (e) {
         return false;
       }
-      // phones and tablets (js/mobil.js) render a bit softer for a higher frame rate
-      const handheld = NEON.platform ? NEON.platform !== 'pc' : !!NEON.mobile;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, handheld ? 1.5 : 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setClearColor(0x000000, 0);
       // no bloom here, so tone-map instead to keep bright cores from clipping to flat white
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
