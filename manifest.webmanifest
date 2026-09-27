@@ -1,0 +1,16 @@
+{
+  "name": "Neon Sigil: Balls and Gambling",
+  "short_name": "Neon Sigil",
+  "description": "Cyber brick breaker with Funky Balls, an RPG, Neon Bubbles and the Cyber-Lottery.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#04020d",
+  "theme_color": "#04020d",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

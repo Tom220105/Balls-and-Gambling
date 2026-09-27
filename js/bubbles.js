@@ -83,7 +83,13 @@
   // Every mechanic gets a tutorial card the first time it shows up.
   const TUTS = {
     basics: { title: 'SHOOT & MATCH', model: ['color', 0],
-      text: 'Aim with the mouse, <b>click</b> to shoot (bank shots off the walls). <b>3 or more</b> bubbles of one colour pop. Whatever then hangs on nothing <b>drops</b> into the DATA SINKS at the bottom — the outer sinks pay <b>×3</b>. <b>S</b> / right-click swaps with the next bubble.' },
+      // touch screens (js/mobil.js sets body.touch) drag to aim and let go to shoot
+      get text() {
+        const touch = document.body.classList.contains('touch');
+        return (touch ? 'Drag your finger to aim, <b>let go</b> to shoot' : 'Aim with the mouse, <b>click</b> to shoot') +
+          ' (bank shots off the walls). <b>3 or more</b> bubbles of one colour pop. Whatever then hangs on nothing <b>drops</b> into the DATA SINKS at the bottom — the outer sinks pay <b>×3</b>. ' +
+          (touch ? '<b>Tap the next bubble</b> to swap with it.' : '<b>S</b> / right-click swaps with the next bubble.');
+      } },
     breach: { title: 'GOAL: BREACH', svg: GOALS.breach.icon, color: GOALS.breach.color,
       text: 'Clear every bubble in the <b>top row</b> of the firewall. Popping and dropping both count. The counter at the top shows how many are left.' },
     rescue: { title: 'GOAL: RESCUE', model: ['core', 0], color: GOALS.rescue.color,
@@ -663,7 +669,7 @@
   // ============================================================== state
   const st = {
     active: false, phase: 'idle', t: 0, phaseT: 0, level: 1, path: 'classic', def: null, type: 'breach',
-    score: 0, shots: 0, surge: 0, cur: null, next: null, aim: 0, keyL: false, keyR: false, mouseAim: true,
+    score: 0, shots: 0, surge: 0, cur: null, next: null, aim: 0, keyL: false, keyR: false, mouseAim: true, touchAim: false,
     rot: 0, omega: 0, shot: null, recoil: 0, timers: [], fallers: [], pops: [], flyers: [],
     viruses: 0, virusTotal: 0, freed: false, chipsGot: 0, bossHp: 0, bossMax: 0, bossT: 3, bossMove: 0,
     press: 0, crushT: 0, wormT: 3, killedVirus: false, chain: 0,
@@ -1713,6 +1719,7 @@
     const n = clamp((opts && opts.level) || parseInt(QS.get('blevel'), 10) || save[path].max, 1, LEVELS);
     const def = levelDef(path, n);
     st.active = true;
+    st.touchAim = false;
     st.path = path;
     st.level = n;
     st.def = def;
@@ -1810,12 +1817,22 @@
   function pointerDown(e) {
     if (!st.active) return;
     if (e && e.button === 2) { swap(); return; }
-    // a click on the NEXT bubble swaps instead of shooting
+    // a click on the NEXT bubble swaps instead of shooting (a finger gets a bigger target)
+    const touch = !!e && e.pointerType === 'touch';
     const p = pointerFloor();
-    if (p && st.next && Math.hypot(p.x + 3.4, p.z - (GUN_Z + 0.4)) < 1.6) { swap(); return; }
+    if (p && st.next && Math.hypot(p.x + 3.4, p.z - (GUN_Z + 0.4)) < (touch ? 2.4 : 1.6)) { swap(); return; }
+    // touch: the finger aims while it is down, the bubble flies when it lets go
+    if (touch) { st.touchAim = true; return; }
     fire();
   }
-  function pointerUp() {}
+  function pointerUp() {
+    if (!st.touchAim) return;
+    st.touchAim = false;
+    readInput(0);   // a quick tap can start and end between two frames
+    // letting go down at the gun cancels the shot
+    const p = pointerFloor();
+    if (p && p.z < GUN_Z - 1) fire();
+  }
 
   $('bb-tut-next').addEventListener('click', nextTut);
   $('bb-help').addEventListener('click', helpTut);
@@ -1834,7 +1851,7 @@
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') st.keyL = false;
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') st.keyR = false;
   });
-  window.addEventListener('blur', () => { st.keyL = st.keyR = false; });
+  window.addEventListener('blur', () => { st.keyL = st.keyR = st.touchAim = false; });
 
   // ============================================================ level map
   const STEP = 128;

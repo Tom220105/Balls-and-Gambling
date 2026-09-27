@@ -16,13 +16,15 @@
   const SAVE_PREFIX = 'neonSigil.';
   const HOLD_MS = 3000;
   const CONFIRM_WORD = 'RESET';
+  // js/mobil.js: body.touch = playing with a finger, body.no-fs = no fullscreen in this browser
+  const isTouch = () => document.body.classList.contains('touch');
 
   const ROWS = [
     { group: 'AUDIO' },
     { k: 'master', label: 'Master volume', type: 'slider', max: 100, unit: '%' },
     { k: 'music', label: 'Music', type: 'slider', max: 100, unit: '%' },
     { k: 'sfx', label: 'Sound effects', type: 'slider', max: 100, unit: '%' },
-    { k: '_mute', label: 'Mute everything', hint: 'Shortcut: M', type: 'toggle', get: () => S.muted, set: () => S.toggleMute() },
+    { k: '_mute', label: 'Mute everything', hint: () => (isTouch() ? '' : 'Shortcut: M'), type: 'toggle', get: () => S.muted, set: () => S.toggleMute() },
     { group: 'GRAPHICS' },
     { k: 'quality', label: 'Render quality', hint: 'AUTO lowers the resolution by itself when the frame rate drops', type: 'choice',
       options: [['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MEDIUM'], ['low', 'LOW']] },
@@ -34,8 +36,10 @@
     { group: 'GAMEPLAY' },
     { k: 'popups', label: 'Damage numbers', hint: 'Floating score and damage numbers', type: 'toggle' },
     { k: '_cursor', label: 'Capture the cursor in games', hint: 'Keeps the mouse inside the game while you play (ESC frees it)', type: 'toggle',
+      show: () => !isTouch(),
       get: () => $('btn-cursor').classList.contains('on'), set: () => $('btn-cursor').click() },
-    { k: '_fs', label: 'Fullscreen', type: 'toggle', get: () => !!document.fullscreenElement, set: () => $('btn-fullscreen').click() },
+    { k: '_fs', label: 'Fullscreen', type: 'toggle', show: () => !document.body.classList.contains('no-fs'),
+      get: () => !!document.fullscreenElement, set: () => $('btn-fullscreen').click() },
     { group: 'DATA' },
     { danger: true },
   ];
@@ -54,6 +58,7 @@
         body.appendChild(section);
         return;
       }
+      if (row.show && !row.show()) return;
       const el = document.createElement('div');
       el.className = 'set-row' + (row.danger ? ' danger' : '');
       if (row.danger) {
@@ -63,7 +68,8 @@
         section.appendChild(el);
         return;
       }
-      el.innerHTML = `<div class="set-label"><b>${row.label}</b>${row.hint ? `<span>${row.hint}</span>` : ''}</div><div class="set-ctrl"></div>`;
+      const hint = typeof row.hint === 'function' ? row.hint() : row.hint;
+      el.innerHTML = `<div class="set-label"><b>${row.label}</b>${hint ? `<span>${hint}</span>` : ''}</div><div class="set-ctrl"></div>`;
       const ctrl = el.querySelector('.set-ctrl');
       if (row.type === 'slider') {
         ctrl.innerHTML = `<input type="range" min="0" max="${row.max}" step="5" value="${valueOf(row)}"><output>${valueOf(row)}${row.unit || ''}</output>`;

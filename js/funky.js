@@ -88,7 +88,7 @@
   const st = {
     inited: false, active: false, phase: 'idle', phaseT: 0, t: 0,
     turn: 0, ballCount: 1, bonusNext: 0, best: 0, coins: 0,
-    gunX: 0, gunTargetX: 0, aim: 0, mouseAim: false, lastPX: 0, lastPZ: 0, dragging: false,
+    gunX: 0, gunTargetX: 0, aim: 0, mouseAim: false, lastPX: 0, lastPZ: 0, dragging: false, touchAim: false,
     keyL: false, keyR: false, keyAL: false, keyAR: false,
     volleyAim: 0, volleyX: 0, fired: 0, fireT: 0, flyT: 0, ff: false,
     firstX: null, landed: 0, hits: 0, combo: 0, forkUsed: false, recoil: 0,
@@ -875,7 +875,7 @@
       st.best = st.turn;
       C.store.set(BEST_KEY, String(st.best));
     }
-    ['fb-hud', 'fb-count', 'fb-hint', 'fb-speed', 'fb-cards'].forEach((id) => $(id).classList.add('hidden'));
+    ['fb-hud', 'fb-count', 'fb-hint', 'fb-speed', 'fb-cards', 'fb-touch'].forEach((id) => $(id).classList.add('hidden'));
     C.finish({ turn: st.turn, best: st.best, isBest, level: st.level });
   }
 
@@ -1262,9 +1262,14 @@
       count.style.top = ((1 - proj.y) / 2) * window.innerHeight + 'px';
     }
     $('fb-hint').classList.toggle('hidden', st.phase !== 'aim' || st.turn > 3);
-    const fast = (st.phase === 'fire' || st.phase === 'fly') && speedMul() > 1.05;
+    const flying = st.phase === 'fire' || st.phase === 'fly';
+    const fast = flying && speedMul() > 1.05;
     $('fb-speed').classList.toggle('hidden', !fast);
-    if (fast) $('fb-speed').textContent = (st.ff ? '⏩ FAST FORWARD ×3' : '⏩ SPEEDING UP') + '   //   R  RECALL';
+    // touch screens get RECALL as a button (js/mobil.js sets body.touch)
+    const touch = document.body.classList.contains('touch');
+    if (fast) $('fb-speed').textContent = (st.ff ? '⏩ FAST FORWARD ×3' : '⏩ SPEEDING UP') + (touch ? '' : '   //   R  RECALL');
+    $('fb-touch').classList.toggle('hidden', !flying);
+    $('fb-ff').classList.toggle('on', st.ff);
     // light follows the first flying ball
     const lead = balls.find((b) => b.state === 'fly');
     if (lead) {
@@ -1331,6 +1336,7 @@
     st.critPopT = -1;
     st.mouseAim = false;
     st.dragging = false;
+    st.touchAim = false;
     st.best = best();
     st.ballId = P.equippedId('ball');
     st.gunId = P.equippedId('gun');
@@ -1382,7 +1388,7 @@
     if (gun) { scene.remove(gun.group); gun = null; }
     if (rail) rail.visible = false;
     hideAim();
-    ['fb-hud', 'fb-count', 'fb-hint', 'fb-speed', 'fb-cards'].forEach((id) => $(id).classList.add('hidden'));
+    ['fb-hud', 'fb-count', 'fb-hint', 'fb-speed', 'fb-cards', 'fb-touch'].forEach((id) => $(id).classList.add('hidden'));
     if (st.inited) C.ballLight.intensity = 0;
   }
 
@@ -1390,18 +1396,33 @@
     return parseInt(C.store.get(BEST_KEY, '0'), 10) || 0;
   }
 
-  function pointerDown() {
+  function pointerDown(e) {
     if (!st.active) return;
     if (st.phase === 'aim') {
       const p = pointerFloor();
       if (p && p.z > LINE_Z - 1.2) { st.dragging = true; return; }   // grab the rail to slide the gun
+      // touch: the finger aims while it is down, the volley fires when it lets go
+      if (e && e.pointerType === 'touch') { st.touchAim = true; return; }
       fire();
     } else if (st.phase === 'fire' || st.phase === 'fly') {
       st.ff = !st.ff;
     }
   }
 
-  function pointerUp() { st.dragging = false; }
+  function pointerUp() {
+    st.dragging = false;
+    if (!st.touchAim) return;
+    st.touchAim = false;
+    if (st.phase !== 'aim') return;
+    readInput(0);   // a quick tap can start and end between two frames
+    // letting go down at the gun cancels the shot
+    const p = pointerFloor();
+    if (p && p.z < GUN_Z - 1) fire();
+  }
+
+  // touch buttons for the F and R keys
+  $('fb-ff').addEventListener('click', () => { if (st.phase === 'fire' || st.phase === 'fly') { st.ff = !st.ff; C.sfx.click(); } });
+  $('fb-recall').addEventListener('click', () => recall());
 
   window.addEventListener('keydown', (e) => {
     if (!st.active) return;
@@ -1424,7 +1445,7 @@
     else if (k === 'ArrowLeft') st.keyAL = false;
     else if (k === 'ArrowRight') st.keyAR = false;
   });
-  window.addEventListener('blur', () => { st.keyL = st.keyR = st.keyAL = st.keyAR = false; st.dragging = false; });
+  window.addEventListener('blur', () => { st.keyL = st.keyR = st.keyAL = st.keyAR = false; st.dragging = st.touchAim = false; });
 
   NEON.funky = { start, stop, update, fire, pointerDown, pointerUp, best };
 })();

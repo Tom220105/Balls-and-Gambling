@@ -246,8 +246,11 @@
   const stage = $('stage');
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   const MAX_PR = Math.min(window.devicePixelRatio || 1, 2);
+  // phones and tablets (js/mobil.js): small screen, weaker GPU, so AUTO starts lower there
+  const MOBILE = !!NEON.mobile;
+  const AUTO_PR = MOBILE ? Math.min(MAX_PR, 1.5) : MAX_PR;
   // render resolution per quality setting ('auto' starts high and steps down when the frame rate sags)
-  const QUALITY_PR = { auto: MAX_PR, high: MAX_PR, medium: Math.min(MAX_PR, 1.25), low: Math.min(MAX_PR, 1) * 0.8 };
+  const QUALITY_PR = { auto: AUTO_PR, high: MAX_PR, medium: Math.min(MAX_PR, 1.25), low: Math.min(MAX_PR, 1) * 0.8 };
   const quality = { pr: QUALITY_PR[settings.quality] || MAX_PR, reflect: settings.reflect && settings.quality !== 'low', acc: 0, frames: 0, last: 0 };
   renderer.setPixelRatio(quality.pr);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1711,7 +1714,11 @@
         const d = noiseBuf.getChannelData(0);
         for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       }
-      if (ctx.state === 'suspended') ctx.resume();
+      // iOS reports 'interrupted' after a call or after the app was in the background
+      if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+        const p = ctx.resume();
+        if (p && p.catch) p.catch(() => {});
+      }
       if (!musicTimer) {
         nextTime = ctx.currentTime + 0.15;
         musicTimer = setInterval(schedule, 25);
@@ -3443,7 +3450,7 @@
     const caught = balls.some((b) => b.caught);
     const hintOn = !game.demo && !game.paused && (game.state === 'serve' || (game.state === 'play' && caught));
     $('hint').classList.toggle('on', hintOn);
-    const text = caught ? 'CLICK  /  SPACE TO RELEASE' : 'CLICK  /  SPACE TO LAUNCH';
+    const text = (document.body.classList.contains('touch') ? 'TAP' : 'CLICK  /  SPACE') + (caught ? ' TO RELEASE' : ' TO LAUNCH');
     if (hintOn && text !== hintText) { hintText = text; $('hint').textContent = text; }
     if (game.demo) {
       for (const k in chipEls) { chipEls[k].div.remove(); delete chipEls[k]; }
@@ -3573,7 +3580,8 @@
   }
 
   function requestLock() {
-    if (!wantLock() || isLocked()) return;
+    // a finger has no cursor to capture
+    if (!wantLock() || isLocked() || document.body.classList.contains('touch')) return;
     try {
       const p = renderer.domElement.requestPointerLock();
       if (p && p.catch) p.catch(() => {});
@@ -3630,8 +3638,11 @@
     input.mode = 'pointer';
   }
   window.addEventListener('pointermove', onPointer);
-  // any click anywhere (menus included) may unlock audio
+  // any click anywhere (menus included) may unlock audio;
+  // phones only allow it once the finger lifts, so try again on the way up
   window.addEventListener('pointerdown', () => audio.init(), true);
+  window.addEventListener('pointerup', () => audio.init(), true);
+  window.addEventListener('touchend', () => audio.init(), true);
   // the running Funky Balls / RPG battle module, if one owns the arena right now
   const extMode = () => (!game.demo && EXT[game.mode] ? EXT[game.mode]() : null);
   const funkyActive = () => !!extMode();
@@ -3699,6 +3710,12 @@
     if (document.hidden && !game.demo && game.state !== 'over') setPaused(true);
   });
 
+  // pause button in the system bar: the P / ESC key for touch screens
+  $('btn-pause').addEventListener('click', () => {
+    if (game.demo || game.state === 'over') return;
+    setPaused(true);
+    sfx.click();
+  });
   $('btn-start').addEventListener('click', openModes);
   $('modes-back').addEventListener('click', closeModes);
   document.querySelectorAll('#screen-modes .mode-card').forEach((b) => {
@@ -3988,6 +4005,10 @@
     } else if (reflector && quality.reflect) {
       quality.reflect = false;
       reflector.visible = false;
+    } else if (MOBILE && quality.pr > 0.76) {
+      // a slow phone may go below 1: a softer picture beats a stuttering game
+      quality.pr = Math.max(0.75, quality.pr - 0.25);
+      resize();
     }
   }
 

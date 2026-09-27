@@ -56,7 +56,7 @@
       { id: 'pulse', name: 'PULSE DECK', rarity: 'rare', ability: 'WIDE BEAM',
         desc: '25% wider than a standard bouncepad.' },
       { id: 'magnet', name: 'MAGNET RAIL', rarity: 'super', ability: 'CATCH',
-        desc: 'Catches the ball on contact. Click / Space fires it again (auto-release after 2 s).' },
+        desc: 'Catches the ball on contact. Tap, click or Space fires it again (auto-release after 2 s).' },
       { id: 'aegis', name: 'AEGIS', rarity: 'super', ability: 'SAFEGUARD',
         desc: 'Every life starts with an energy barrier that saves one falling ball.' },
       { id: 'twin', name: 'TWIN BLASTER', rarity: 'epic', ability: 'RETALIATE',
