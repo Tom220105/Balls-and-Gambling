@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — settings screen
+   BALLS & GAMBLING — settings screen
    Audio, graphics and gameplay options (applied live by js/spiel.js through
    NEON.settings) and the RESET GAME button. Resetting deletes every save key
    of the game, so it sits behind two safety steps: type RESET, then hold the

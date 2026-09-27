@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — NEON BUBBLES
+   BALLS & GAMBLING — NEON BUBBLES
    A bubble shooter on the main arena in the spirit of Bubble Witch Saga,
    rebuilt as a cyber data purge:
    * two paths of 60 levels each: CLASSIC teaches everything step by step,
@@ -1426,8 +1426,11 @@
     const at = (x, y, z) => { pv.set(x, y, z).project(C.camera); return [((pv.x + 1) / 2) * window.innerWidth, ((1 - pv.y) / 2) * window.innerHeight]; };
     const [sx, sy] = at(3.6, 0, GUN_Z);
     $('bb-shots').style.transform = `translate(${sx.toFixed(0)}px, ${sy.toFixed(0)}px) translate(0, -50%)`;
-    const [nx, ny] = at(-3.4, 0, GUN_Z + 1.5);
-    $('bb-next-lbl').style.transform = `translate(${nx.toFixed(0)}px, ${ny.toFixed(0)}px) translate(-50%, 0)`;
+    // phones look at the arena from above: the sinks sit right below the gun, so the
+    // NEXT label goes above the next bubble instead of under it
+    const above = NEON.platform && NEON.platform !== 'pc';
+    const [nx, ny] = above ? at(-3.4, 0, GUN_Z - 1.2) : at(-3.4, 0, GUN_Z + 1.5);
+    $('bb-next-lbl').style.transform = `translate(${nx.toFixed(0)}px, ${ny.toFixed(0)}px) translate(-50%, ${above ? '-100%' : '0'})`;
     $('bb-next-lbl').classList.toggle('hidden', !st.next || st.phase !== 'aim');
   }
 
@@ -2042,6 +2045,8 @@
 
   NEON.bubble = {
     start, stop, update, fire, pointerDown, pointerUp, openMap, closeMap,
+    // for the phone camera (js/spiel.js): the field ends below the sinks, the SURGE bar stays free
+    frame: { bottom: SINK_Z + 1.1, ui: ['#bb-hud .bb-surge'] },
     best: () => starsOf('classic') + starsOf('hard'), levelDef,
   };
 })();

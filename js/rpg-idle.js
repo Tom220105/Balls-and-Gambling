@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — RPG idle screen ("NEON RUN")
+   BALLS & GAMBLING — RPG idle screen ("NEON RUN")
    The RPG hub: while your AFK loot piles up, your team races down an endless
    synthwave data highway. Viruses charge in from the horizon, melee heroes
    dash into them, ranged heroes shoot them down, coins burst out of every
@@ -499,6 +499,8 @@
       const shift = handheld ? -5 * Math.min(1, Math.max(0, (back - 1) / 2)) : 0;
       look.x = LOOK_X + shift;
       camera.position.copy(camBase).setX(camBase.x + shift).sub(look).multiplyScalar(k).add(look);
+      scene.fog.near = 40 * k;   // the fog moves back with the camera, so the team never turns dark
+      scene.fog.far = 150 * k;
       camera.position.x += Math.sin(t * 0.35) * 0.6 + (Math.random() - 0.5) * shake * 0.6;
       camera.position.y += Math.sin(t * 0.5) * 0.25 + (Math.random() - 0.5) * shake * 0.5;
       shake = Math.max(0, shake - dt * 2.5);

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEON SIGIL — Skill Tree
+   BALLS & GAMBLING — Skill Tree
    Spend tokens (earned in Funky Balls) on permanent upgrades. Two branches
    grow out of the Neural Core: ECONOMY (coins, box price, loot luck, Plinko,
    Crash Plane) and FUNKY BALLS (starting balls, bonus damage, card slots).
