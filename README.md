@@ -27,7 +27,7 @@ The game works upright and sideways. On a phone or tablet the controls are:
 
 | Mode | Touch controls |
 | --- | --- |
-| Classic / Survival | Drag your finger to move the pad, tap to launch the ball |
+| Classic / Survival | Drag your finger anywhere (best in the free space below the arena) to move the pad, tap to launch the ball |
 | Funky Balls | Drag to aim, let go to fire. Drag near the gun to move it. FAST and RECALL buttons while the balls fly |
 | Neon Bubbles | Drag to aim, let go to shoot. Tap the next bubble to swap |
 | RPG | Drag back and let go to sling a hero. Tap a hero card to arm HYPER |

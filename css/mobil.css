@@ -13,6 +13,9 @@ img { -webkit-user-drag: none; -webkit-touch-callout: none; }
 /* fast taps on buttons must not zoom the page (iOS double-tap zoom) */
 button, input, label, a { touch-action: manipulation; }
 
+/* the arena canvas takes every touch itself (no page scroll, no zoom) */
+#stage, #stage canvas { touch-action: none; -webkit-user-select: none; user-select: none; }
+
 /* keyboard hints on PC, touch hints on phones */
 body:not(.touch) .touch-only { display: none !important; }
 body.touch .kb-only { display: none !important; }
@@ -86,7 +89,15 @@ body.playing #btn-pause { display: grid; }
   body.playing #sys-bar { top: 8px; left: 8px; transform: none; }
   body.playing #sys-bar .sys-btn:not(#btn-pause) { display: none; }
   body.playing #btn-pause { width: 36px; height: 36px; }
-  body.playing #hud, body.playing #fb-hud { padding-left: 52px; }
+  body.playing #hud, body.playing #fb-hud { padding: 8px 10px 6px 52px; }
+  /* a shorter HUD leaves more room for the arena: lives and coins share one row */
+  #hud .hud-right { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; column-gap: 10px; }
+  #hud .hud-right .label, #hud .hud-right .value { flex-basis: 100%; }
+  #hud .lives { margin-top: 2px; }
+  .hud-coins { margin-top: 2px; font-size: 15px; }
+  #hud .chain { margin-top: 0; font-size: 11px; }
+  #fb-hud .hud-right { display: flex; flex-direction: column; align-items: flex-end; }
+  #fb-hud .hud-coins { margin-top: 0; }
   body.touch #fb-speed { bottom: 140px; }
 }
 
@@ -98,7 +109,8 @@ body.playing #btn-pause { display: grid; }
   .mb-speed { right: 8px; top: 10px; padding: 3px; }
   .mb-speed span { display: none; }
   .mb-speed button { min-width: 34px; padding: 6px; }
-  .mb-hint { padding: 0 10px; }
+  /* the hint moves from the top of the arena down to the hero cards */
+  .mb-hint { top: auto; bottom: 150px; padding: 0 10px; }
   /* Neon Bubbles: the "?" moves down so it doesn't cover the goal counter */
   .bb-top { gap: 8px; padding: 6px 10px; }
   .bb-bar { width: 110px; }
@@ -133,6 +145,8 @@ body.playing #btn-pause { display: grid; }
 @media (orientation: portrait) and (max-width: 860px) {
   .coll { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; }
   .coll-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .tabs { gap: 6px; }
+  .tab { padding: 7px 9px; font-size: 10px; letter-spacing: 0.1em; }
   .coll-detail {
     order: 1;
     display: grid;
@@ -234,3 +248,7 @@ body.playing #btn-pause { display: grid; }
   .mb-hp-label { font-size: 8px; }
   .mb-hp-text { font-size: 11px; }
 }
+
+/* collection: level and stars of a hero card */
+.ic-lvl { margin-top: 2px; font-family: var(--font-mono); font-size: 11px; color: var(--gold); }
+.hero-card .ic-img img { transform: scale(1.1); }

@@ -249,18 +249,10 @@
   // the device the player picked on the first start (js/mobil.js): 'pc' | 'phone' | 'tablet'
   const platform = () => NEON.platform || (NEON.mobile ? 'phone' : 'pc');
   const handheld = () => platform() !== 'pc';
-  // render resolution per quality setting ('auto' starts high and steps down when the frame rate sags;
-  // phones and tablets start lower: small screen, weaker GPU, and they aim for 90 / 120 FPS)
-  const QUALITY_PR = { high: MAX_PR, medium: Math.min(MAX_PR, 1.25), low: Math.min(MAX_PR, 1) * 0.8 };
-  function qualityPr(q) {
-    if (q !== 'auto') return QUALITY_PR[q] || MAX_PR;
-    if (platform() === 'phone') return Math.min(MAX_PR, 1.25);
-    if (platform() === 'tablet') return Math.min(MAX_PR, 1.5);
-    return MAX_PR;
-  }
-  // displayDt: how often the screen refreshes (1/60, 1/90, 1/120 s), measured from the fastest frames
-  const quality = { pr: qualityPr(settings.quality), reflect: settings.reflect && settings.quality !== 'low', acc: 0, frames: 0, last: 0,
-    displayDt: 1 / 60, dts: [] };
+  // render resolution per quality setting ('auto' starts sharp and steps down when the frame rate sags)
+  const QUALITY_PR = { auto: MAX_PR, high: MAX_PR, medium: Math.min(MAX_PR, 1.25), low: Math.min(MAX_PR, 1) * 0.8 };
+  const qualityPr = (q) => QUALITY_PR[q] || MAX_PR;
+  const quality = { pr: qualityPr(settings.quality), reflect: settings.reflect && settings.quality !== 'low', acc: 0, frames: 0, last: 0 };
   renderer.setPixelRatio(quality.pr);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x04020d, 1);
@@ -274,11 +266,8 @@
   scene.fog = new THREE.Fog(0x04020d, 70, 170);
 
   const BASE_FOV = 39;
-  // camera poses: PC keeps the classic view, phones and tablets get a closer,
-  // steeper one so the arena fills the small screen (see frameArena)
+  // camera: PC keeps the classic view, phones and tablets get their own framing (frameHandheld)
   const CAM_PC = { pos: new THREE.Vector3(0, 46, 32), look: new THREE.Vector3(0, 0, -2.6) };
-  const CAM_TALL = { pos: new THREE.Vector3(0, 63, 12), look: new THREE.Vector3(0, 0, -1.6) };   // phone held upright
-  const CAM_WIDE = { pos: new THREE.Vector3(0, 52, 22), look: new THREE.Vector3(0, 0, -1.8) };   // phone / tablet sideways
   const CAM_POS = CAM_PC.pos.clone();
   const CAM_LOOK = CAM_PC.look.clone();
   const camera = new THREE.PerspectiveCamera(BASE_FOV, window.innerWidth / window.innerHeight, 0.5, 500);
@@ -3333,12 +3322,14 @@
       setState(mode);
       EXT[mode]().start(extOpts);
       extOpts = null;
+      frameCamera();   // every mode has its own HUD height
       requestLock();
       return;
     }
     $('hud').classList.remove('hidden');
     if (mode === 'survival') loadSurvival();
     else loadLevel(DEBUG.level);
+    frameCamera();
     requestLock();
   }
 
@@ -3374,6 +3365,7 @@
     document.body.classList.remove('playing');
     refreshLoadout();
     loadLevel(1);
+    frameCamera();
   }
 
   function showTitle() {
@@ -3650,11 +3642,15 @@
 
   function onPointer(e) {
     if (isLocked()) { setAim(cursor.x + (e.movementX || 0), cursor.y + (e.movementY || 0)); return; }
-    cursor.x = e.clientX;
-    cursor.y = e.clientY;
-    input.ndcX = (e.clientX / window.innerWidth) * 2 - 1;
-    input.ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
-    input.mode = 'pointer';
+    aimAt(e.clientX, e.clientY);
+    // a finger steers the pad relatively (see the touch code below), a mouse directly
+    input.mode = e.pointerType === 'touch' ? 'touch' : 'pointer';
+  }
+  function aimAt(x, y) {
+    cursor.x = x;
+    cursor.y = y;
+    input.ndcX = (x / window.innerWidth) * 2 - 1;
+    input.ndcY = -(y / window.innerHeight) * 2 + 1;
   }
   window.addEventListener('pointermove', onPointer);
   // any click anywhere (menus included) may unlock audio;
@@ -3666,7 +3662,13 @@
   const extMode = () => (!game.demo && EXT[game.mode] ? EXT[game.mode]() : null);
   const funkyActive = () => !!extMode();
 
-  renderer.domElement.addEventListener('pointerdown', (e) => {
+  // press on the arena: launch the ball, fire, start a drag. Phones send a pointerdown AND a
+  // touchstart for the same finger, so a second press within 150 ms is ignored.
+  let lastPress = -1;
+  function pressArena(e) {
+    const now = performance.now();
+    if (now - lastPress < 150) return;
+    lastPress = now;
     if (isLocked()) {
       // captured cursor: HUD buttons under the crosshair still work
       const el = document.elementFromPoint(cursor.x, cursor.y);
@@ -3678,9 +3680,57 @@
     }
     if (game.paused) { setPaused(false); return; }
     if (funkyActive()) { extMode().pointerDown(e); return; }
+    if (e.pointerType === 'touch') return;   // a finger launches on a short tap when it lifts (touchEnd)
     if (!game.demo && (game.state === 'serve' || balls.some((b) => b.caught))) launch();
-  });
+  }
+  renderer.domElement.addEventListener('pointerdown', pressArena);
   window.addEventListener('pointerup', (e) => { if (funkyActive()) extMode().pointerUp(e); });
+
+  // ------------------------------------------------------------ touch
+  // Phones: the arena takes the touches itself. Otherwise iOS may treat a finger drag
+  // as a page scroll and stop sending pointer events, and the pad would not follow.
+  // Classic / Survival: drag anywhere (also below the arena, so the finger never covers
+  // the ball) and the pad moves with the finger; a tap launches.
+  const TOUCH_GAIN = 1.35;
+  const touch = { id: null, startWX: 0, startTarget: 0, x: 0, y: 0, moved: 0 };
+  const findTouch = (list) => { for (const t of list) if (t.identifier === touch.id) return t; return null; };
+  const cv = renderer.domElement;
+  cv.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    audio.init();
+    if (touch.id !== null) return;   // a second finger is ignored
+    touch.id = t.identifier;
+    touch.x = t.clientX;
+    touch.y = t.clientY;
+    touch.moved = 0;
+    aimAt(t.clientX, t.clientY);
+    input.mode = 'touch';
+    touch.startWX = pointerWorldX();
+    touch.startTarget = paddle.target;
+    pressArena({ pointerType: 'touch', button: 0, clientX: t.clientX, clientY: t.clientY, movementX: 0, movementY: 0 });
+  }, { passive: false });
+  cv.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const t = findTouch(e.changedTouches);
+    if (!t) return;
+    aimAt(t.clientX, t.clientY);
+    input.mode = 'touch';
+    touch.moved = Math.max(touch.moved, Math.hypot(t.clientX - touch.x, t.clientY - touch.y));
+    paddle.target = touch.startTarget + (pointerWorldX() - touch.startWX) * TOUCH_GAIN;
+  }, { passive: false });
+  function touchEnd(e) {
+    const t = findTouch(e.changedTouches);
+    if (!t) return;
+    touch.id = null;
+    aimAt(t.clientX, t.clientY);
+    if (funkyActive()) { extMode().pointerUp({ pointerType: 'touch', clientX: t.clientX, clientY: t.clientY }); return; }
+    // Classic / Survival: a tap (the finger did not drag) launches or releases the ball
+    const tap = touch.moved < 14;
+    if (tap && e.type === 'touchend' && !game.demo && !game.paused && (game.state === 'serve' || balls.some((b) => b.caught))) launch();
+  }
+  cv.addEventListener('touchend', touchEnd);
+  cv.addEventListener('touchcancel', touchEnd);
 
   window.addEventListener('keydown', (e) => {
     audio.init();
@@ -3784,8 +3834,8 @@
     else if (input.mode === 'keys') {
       const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
       paddle.target += dir * 26 * dt;
-    } else if (input.ndcX !== null) {
-      paddle.target = pointerWorldX();
+    } else if (input.mode === 'pointer' && input.ndcX !== null) {
+      paddle.target = pointerWorldX();   // mouse: the pad sits under the cursor (touch sets the target itself)
     }
     paddle.w = damp(paddle.w, paddle.targetW, 10, dt);
     const limit = HALF_W - paddle.w / 2;
@@ -3990,43 +4040,66 @@
     return Math.max(BASE_FOV, fovForWidth);
   }
 
-  // Phones and tablets: a closer, steeper camera and the tightest field of view that still
-  // shows both walls, the far wall below the HUD and the near edge of the platform.
+  // Phones and tablets: the camera looks down from high above through a long lens, so the
+  // arena barely shrinks towards the far end and fills the screen. It picks the tightest
+  // field of view that still shows the whole playfield between the walls, with the far wall
+  // right below the HUD. Upright phones are limited by the width, so the rest of the screen
+  // below the arena stays free for the thumb; sideways the arena fills the full height.
   const fitCam = new THREE.PerspectiveCamera();
   const fitV = new THREE.Vector3();
-  function frameHandheld(aspect, h) {
-    // upright phone -> CAM_TALL, sideways -> CAM_WIDE, upright tablets in between
-    const t = clamp((aspect - 0.6) / 0.4, 0, 1);
-    CAM_POS.lerpVectors(CAM_TALL.pos, CAM_WIDE.pos, t);
-    CAM_LOOK.lerpVectors(CAM_TALL.look, CAM_WIDE.look, t);
-    fitCam.position.copy(CAM_POS);
-    fitCam.lookAt(CAM_LOOK);
-    fitCam.updateMatrixWorld(true);
+  const fitDir = new THREE.Vector3();
+  const HUD_IDS = { classic: '#hud', survival: '#hud', funky: '#fb-hud', bubble: '#bb-hud .bb-top', marble: '#mb-hud .mb-top' };
+  // sideways the score boxes sit left and right of the arena: only the middle of the HUD counts
+  const HUD_IDS_WIDE = { classic: '#hud .hud-center', survival: '#hud .hud-center', funky: '#fb-hud .hud-center', bubble: '#bb-hud .bb-top', marble: '#mb-hud .mb-top' };
+  // how far down the HUD of the running mode reaches, in px
+  function hudBottom(w, h) {
+    const ids = w > h ? HUD_IDS_WIDE : HUD_IDS;
+    const el = !game.demo && ids[game.mode] && document.querySelector(ids[game.mode]);
+    const r = el && el.getBoundingClientRect();
+    return r && r.height ? r.bottom + 6 : Math.round(h * 0.05);
+  }
+  function frameHandheld(aspect, w, h) {
+    const t = clamp((aspect - 0.55) / 0.75, 0, 1);            // 0 upright phone … 1 sideways
+    const pitch = THREE.MathUtils.degToRad(lerp(76, 60, t));  // how steep the camera looks down
+    const dist = lerp(130, 70, t);
+    fitDir.set(0, Math.sin(pitch), Math.cos(pitch)).multiplyScalar(dist);
     fitCam.aspect = aspect;
-    const side = HALF_W + WALL_T + lerp(0.3, 1.2, t);
-    const hudTop = aspect < 1 ? 1 - (2 * 88) / h : 1;   // the HUD covers the top 88 px of an upright screen
-    const ndcY = (x, y, z) => fitV.set(x, y, z).project(fitCam).y;
-    for (let fov = 20; fov < 100; fov += 0.25) {
+    const side = HALF_W + lerp(0.35, WALL_T + 0.8, t);        // upright: the inner playfield, the walls may be cut
+    const topLimit = 1 - (2 * hudBottom(w, h)) / h;
+    const place = (lookZ) => {
+      fitCam.position.set(0, 0, lookZ).add(fitDir);
+      fitCam.lookAt(0, 0, lookZ);
+      fitCam.updateMatrixWorld(true);
+    };
+    const ndc = (x, y, z) => fitV.set(x, y, z).project(fitCam);
+    for (let fov = 6; fov < 90; fov += 0.2) {
       fitCam.fov = fov;
       fitCam.updateProjectionMatrix();
-      const nearX = fitV.set(side, 0, BOTTOM_Z).project(fitCam).x;
-      if (nearX > 1) continue;                                           // walls cut off at the sides
-      if (ndcY(0, WALL_H, TOP_Z - WALL_T) > hudTop - 0.02) continue;     // far wall under the HUD
-      if (ndcY(0, 5, TOP_Z - 2.5) > 1.02) continue;                      // the Sentinel's head
-      if (ndcY(0, 0, BOTTOM_Z) < -1.02) continue;                        // near edge of the platform
+      // slide the view until the top of the far wall sits right under the HUD
+      // (looking further towards the player moves the far wall up the screen)
+      let lo = -40, hi = 30;
+      for (let i = 0; i < 22; i++) {
+        const mid = (lo + hi) / 2;
+        place(mid);
+        if (ndc(0, WALL_H, TOP_Z - WALL_T).y > topLimit) hi = mid; else lo = mid;
+      }
+      place(lo);
+      if (Math.abs(ndc(side, 0, BOTTOM_Z).x) > 1 || Math.abs(ndc(side, 0, TOP_Z).x) > 1) continue;
+      if (ndc(0, 0, BOTTOM_Z).y < -1) continue;
+      CAM_LOOK.set(0, 0, lo);
+      CAM_POS.copy(CAM_LOOK).add(fitDir);
       return fov;
     }
+    CAM_POS.copy(CAM_PC.pos);
+    CAM_LOOK.copy(CAM_PC.look);
     return 60;
   }
 
-  function resize() {
-    const w = window.innerWidth, h = window.innerHeight;
-    renderer.setPixelRatio(quality.pr);
-    composer.setPixelRatio(quality.pr);
-    renderer.setSize(w, h);
-    composer.setSize(w, h);
-    const aspect = w / h;
-    const fov = handheld() ? frameHandheld(aspect, h) : framePC(aspect);
+  // points the camera for the current screen and mode (also called when a mode starts,
+  // because every mode has a HUD of a different height)
+  function frameCamera() {
+    const w = window.innerWidth, h = window.innerHeight, aspect = w / h;
+    const fov = handheld() ? frameHandheld(aspect, w, h) : framePC(aspect);
     [camera, refCam].forEach((c) => {
       c.aspect = aspect;
       c.fov = fov;
@@ -4035,9 +4108,22 @@
     refCam.position.copy(CAM_POS);
     refCam.lookAt(CAM_LOOK);
     refCam.updateMatrixWorld(true);
+    // the fog starts behind the arena, however far away the camera is
+    const dist = CAM_POS.distanceTo(CAM_LOOK);
+    scene.fog.near = dist + 12;
+    scene.fog.far = dist + 112;
+    pMat.uniforms.uScale.value = (h * quality.pr) / (2 * Math.tan(THREE.MathUtils.degToRad(fov) / 2));
+  }
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setPixelRatio(quality.pr);
+    composer.setPixelRatio(quality.pr);
+    renderer.setSize(w, h);
+    composer.setSize(w, h);
+    frameCamera();
     const pr = quality.pr;
     finalPass.uniforms.uRes.value.set(w * pr, h * pr);
-    pMat.uniforms.uScale.value = (h * pr) / (2 * Math.tan(THREE.MathUtils.degToRad(fov) / 2));
     if (reflector) {
       const rw = Math.max(256, Math.round(w * pr * 0.5)), rh = Math.max(256, Math.round(h * pr * 0.5));
       reflector.getRenderTarget().setSize(rw, rh);
@@ -4046,42 +4132,25 @@
   }
   window.addEventListener('resize', resize);
 
-  // How often the screen refreshes: the 20th percentile of the last 120 frame times.
-  // Menus draw at half rate, so there the frames come as fast as the screen allows.
-  function measureDisplay(realDt) {
-    if (realDt < 1 / 250 || realDt > 1 / 20) return;
-    quality.dts.push(realDt);
-    if (quality.dts.length < 120) return;
-    const p20 = quality.dts.sort((a, b) => a - b)[24];
-    quality.dts.length = 0;
-    quality.displayDt = Math.min(quality.displayDt, p20);
-  }
-
-  // Adaptive quality: if the frame rate sags, lower the render resolution in
-  // steps, and as a last resort switch the mirror floor off.
-  // PC only reacts below 45 FPS. Phones and tablets aim for the screen's own
-  // refresh rate (60, 90 or 120 Hz) and trade some sharpness for smooth frames.
+  // Adaptive quality: if the frame rate sags below 45 FPS, lower the render resolution
+  // in steps and switch the mirror floor off. Phones and tablets keep a sharp picture
+  // (at least 1.5x) and only go lower when the game really stutters (below 32 FPS).
   function monitorQuality(realDt) {
     if (DEBUG.hq || settings.quality !== 'auto' || menuOpen || document.hidden || realDt > 0.25) return;
     quality.acc += realDt;
     quality.frames++;
-    if (quality.acc < 2) return;
+    if (quality.acc < 3) return;
     const avg = quality.acc / quality.frames;
     quality.acc = 0;
     quality.frames = 0;
-    const slow = avg > 1 / 45;
-    const behind = handheld() && avg > quality.displayDt * 1.2;
-    if (!slow && !behind) return;
-    if (quality.pr > 1.01) {
-      quality.pr = Math.max(1, quality.pr - 0.25);
+    if (avg < 1 / 45) return;
+    const floor = handheld() && avg < 1 / 32 ? 1.5 : 1;
+    if (quality.pr > floor + 0.01) {
+      quality.pr = Math.max(floor, quality.pr - 0.25);
       resize();
     } else if (reflector && quality.reflect) {
       quality.reflect = false;
       reflector.visible = false;
-    } else if (slow && handheld() && quality.pr > 0.76) {
-      // a slow phone may go below 1: a softer picture beats a stuttering game
-      quality.pr = Math.max(0.75, quality.pr - 0.25);
-      resize();
     }
   }
 
@@ -4236,7 +4305,6 @@
     const dt = Math.min(realDt, 1 / 30);
     if (isLocked() && !wantLock()) document.exitPointerLock();   // menus always get the real cursor back
     countFps(realDt);
-    measureDisplay(realDt);
     if (occluded) return;
     tick(dt);
     monitorQuality(realDt);
