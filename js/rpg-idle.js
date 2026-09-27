@@ -120,7 +120,8 @@
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x12052a, 40, 150);
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
-    const camBase = new THREE.Vector3(1.5, 7.4, 20), look = new THREE.Vector3(3, 1.6, -3);
+    const LOOK_X = 3;
+    const camBase = new THREE.Vector3(1.5, 7.4, 20), look = new THREE.Vector3(LOOK_X, 1.6, -3);
 
     scene.add(new THREE.AmbientLight(0x8a6aff, 0.55));
     scene.add(new THREE.HemisphereLight(0xff7ad8, 0x100820, 0.6));
@@ -490,8 +491,14 @@
 
     function update(dt) {
       t += dt;
-      const k = Math.max(1, 1.5 / camera.aspect);   // back off on narrow screens
-      camera.position.copy(camBase).sub(look).multiplyScalar(k).add(look);
+      // back off on narrow screens. Phones and tablets (js/mobil.js) back off less and
+      // turn towards the team instead, so the heroes stay big on an upright screen.
+      const back = 1.5 / camera.aspect;
+      const handheld = NEON.platform && NEON.platform !== 'pc';
+      const k = Math.max(1, handheld ? Math.sqrt(back) : back);
+      const shift = handheld ? -5 * Math.min(1, Math.max(0, (back - 1) / 2)) : 0;
+      look.x = LOOK_X + shift;
+      camera.position.copy(camBase).setX(camBase.x + shift).sub(look).multiplyScalar(k).add(look);
       camera.position.x += Math.sin(t * 0.35) * 0.6 + (Math.random() - 0.5) * shake * 0.6;
       camera.position.y += Math.sin(t * 0.5) * 0.25 + (Math.random() - 0.5) * shake * 0.5;
       shake = Math.max(0, shake - dt * 2.5);
@@ -624,7 +631,8 @@
       spawnT = 0.4;
     }
 
-    return { scene, camera, update, setTeam, collect, reset, get distance() { return dist; }, get kills() { return kills; } };
+    // exposure: brighter than the stage3d default, the night highway looked too dark
+    return { scene, camera, update, setTeam, collect, reset, exposure: 1.6, get distance() { return dist; }, get kills() { return kills; } };
   }
 
   NEON.rpgIdle = { create };

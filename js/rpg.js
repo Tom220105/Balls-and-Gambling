@@ -591,6 +591,7 @@
 
     const prog = {
       scene, camera, host, toScreen,
+      exposure: 1.6,   // the stage3d default (1.35) looked too dark for the RPG
       fx: { spark, ring, beam, slash, shot, flash(x, z, color, k) { flashL.position.set(x, 3, z); flashL.color.setHex(color); flashL.intensity = k; } },
       slotMarks,
       update(dt) {

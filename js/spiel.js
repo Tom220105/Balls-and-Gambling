@@ -246,12 +246,21 @@
   const stage = $('stage');
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   const MAX_PR = Math.min(window.devicePixelRatio || 1, 2);
-  // phones and tablets (js/mobil.js): small screen, weaker GPU, so AUTO starts lower there
-  const MOBILE = !!NEON.mobile;
-  const AUTO_PR = MOBILE ? Math.min(MAX_PR, 1.5) : MAX_PR;
-  // render resolution per quality setting ('auto' starts high and steps down when the frame rate sags)
-  const QUALITY_PR = { auto: AUTO_PR, high: MAX_PR, medium: Math.min(MAX_PR, 1.25), low: Math.min(MAX_PR, 1) * 0.8 };
-  const quality = { pr: QUALITY_PR[settings.quality] || MAX_PR, reflect: settings.reflect && settings.quality !== 'low', acc: 0, frames: 0, last: 0 };
+  // the device the player picked on the first start (js/mobil.js): 'pc' | 'phone' | 'tablet'
+  const platform = () => NEON.platform || (NEON.mobile ? 'phone' : 'pc');
+  const handheld = () => platform() !== 'pc';
+  // render resolution per quality setting ('auto' starts high and steps down when the frame rate sags;
+  // phones and tablets start lower: small screen, weaker GPU, and they aim for 90 / 120 FPS)
+  const QUALITY_PR = { high: MAX_PR, medium: Math.min(MAX_PR, 1.25), low: Math.min(MAX_PR, 1) * 0.8 };
+  function qualityPr(q) {
+    if (q !== 'auto') return QUALITY_PR[q] || MAX_PR;
+    if (platform() === 'phone') return Math.min(MAX_PR, 1.25);
+    if (platform() === 'tablet') return Math.min(MAX_PR, 1.5);
+    return MAX_PR;
+  }
+  // displayDt: how often the screen refreshes (1/60, 1/90, 1/120 s), measured from the fastest frames
+  const quality = { pr: qualityPr(settings.quality), reflect: settings.reflect && settings.quality !== 'low', acc: 0, frames: 0, last: 0,
+    displayDt: 1 / 60, dts: [] };
   renderer.setPixelRatio(quality.pr);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x04020d, 1);
@@ -265,8 +274,13 @@
   scene.fog = new THREE.Fog(0x04020d, 70, 170);
 
   const BASE_FOV = 39;
-  const CAM_POS = new THREE.Vector3(0, 46, 32);
-  const CAM_LOOK = new THREE.Vector3(0, 0, -2.6);
+  // camera poses: PC keeps the classic view, phones and tablets get a closer,
+  // steeper one so the arena fills the small screen (see frameArena)
+  const CAM_PC = { pos: new THREE.Vector3(0, 46, 32), look: new THREE.Vector3(0, 0, -2.6) };
+  const CAM_TALL = { pos: new THREE.Vector3(0, 63, 12), look: new THREE.Vector3(0, 0, -1.6) };   // phone held upright
+  const CAM_WIDE = { pos: new THREE.Vector3(0, 52, 22), look: new THREE.Vector3(0, 0, -1.8) };   // phone / tablet sideways
+  const CAM_POS = CAM_PC.pos.clone();
+  const CAM_LOOK = CAM_PC.look.clone();
   const camera = new THREE.PerspectiveCamera(BASE_FOV, window.innerWidth / window.innerHeight, 0.5, 500);
   camera.position.copy(CAM_POS);
   camera.lookAt(CAM_LOOK);
@@ -282,6 +296,8 @@
       uTime: { value: 0 },
       uGlitch: { value: 0 },
       uRes: { value: new THREE.Vector2(1, 1) },
+      uGain: { value: 1 },    // overall brightness (phones and the RPG get a bit more)
+      uVig: { value: 0.45 },  // how much the vignette darkens the corners
     },
     vertexShader: /* glsl */`
       varying vec2 vUv;
@@ -291,6 +307,8 @@
       uniform float uTime;
       uniform float uGlitch;
       uniform vec2 uRes;
+      uniform float uGain;
+      uniform float uVig;
       varying vec2 vUv;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       vec3 shoulder(vec3 x) {
@@ -311,11 +329,11 @@
         col.r = texture2D(tDiffuse, uv - d * ca).r;
         col.g = texture2D(tDiffuse, uv).g;
         col.b = texture2D(tDiffuse, uv + d * ca).b;
-        col = shoulder(max(col, 0.0));
+        col = shoulder(max(col * uGain, 0.0));
         float lum = dot(col, vec3(0.299, 0.587, 0.114));
         col += vec3(0.0, 0.008, 0.025) * (1.0 - lum) + vec3(0.015, 0.0, 0.01) * lum;
         float vig = 1.0 - smoothstep(0.45, 1.05, length(d * vec2(1.1, 1.0)) * 1.3);
-        col *= mix(0.55, 1.0, vig);
+        col *= mix(1.0 - uVig, 1.0, vig);
         col += (hash(gl_FragCoord.xy + fract(uTime) * 61.0) - 0.5) / 255.0;
         col += vec3(0.03, 0.0, 0.06) * g;
         gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
@@ -326,7 +344,8 @@
   // anti-aliased edges (the canvas' own antialias flag is lost in post-processing).
   const composerTarget = new THREE.WebGLRenderTarget(1, 1, {
     type: HDR ? THREE.HalfFloatType : THREE.UnsignedByteType,
-    samples: caps.isWebGL2 ? 4 : 0,
+    // 4x MSAA on PC; phones render at a lower resolution and aim for 90 / 120 FPS, 2x is enough there
+    samples: caps.isWebGL2 ? (platform() === 'phone' ? 2 : 4) : 0,
   });
   const composer = new THREE.EffectComposer(renderer, composerTarget);
   composer.setPixelRatio(quality.pr);
@@ -3945,7 +3964,8 @@
     const sh = game.shake * game.shake;
     game.shake = Math.max(0, game.shake - dt * 1.8);
     game.glitch = Math.max(0, game.glitch - dt * 1.6);
-    const sway = Math.min(1, camera.aspect);   // no room to sway on portrait screens
+    // no room to sway on portrait screens, and the tight phone framing has none either
+    const sway = handheld() ? 0 : Math.min(1, camera.aspect);
     const orbit = game.demo ? Math.sin(time * 0.15) * 7 * sway : 0;
     const fx = funkyActive() ? focusX : paddle.x;
     camera.position.set(
@@ -3958,6 +3978,47 @@
   }
 
   // ============================================================== resize
+  // PC: the classic camera; the view only widens on narrow (portrait) windows so both
+  // walls stay visible. The near edge of the platform is the widest thing on screen, so fit that.
+  function framePC(aspect) {
+    CAM_POS.copy(CAM_PC.pos);
+    CAM_LOOK.copy(CAM_PC.look);
+    const viewDir = new THREE.Vector3().subVectors(CAM_LOOK, CAM_POS).normalize();
+    const nearDepth = new THREE.Vector3(0, 0, BOTTOM_Z).sub(CAM_POS).dot(viewDir);
+    const needHalfW = HALF_W + WALL_T + 2;
+    const fovForWidth = THREE.MathUtils.radToDeg(2 * Math.atan(needHalfW / (nearDepth * aspect)));
+    return Math.max(BASE_FOV, fovForWidth);
+  }
+
+  // Phones and tablets: a closer, steeper camera and the tightest field of view that still
+  // shows both walls, the far wall below the HUD and the near edge of the platform.
+  const fitCam = new THREE.PerspectiveCamera();
+  const fitV = new THREE.Vector3();
+  function frameHandheld(aspect, h) {
+    // upright phone -> CAM_TALL, sideways -> CAM_WIDE, upright tablets in between
+    const t = clamp((aspect - 0.6) / 0.4, 0, 1);
+    CAM_POS.lerpVectors(CAM_TALL.pos, CAM_WIDE.pos, t);
+    CAM_LOOK.lerpVectors(CAM_TALL.look, CAM_WIDE.look, t);
+    fitCam.position.copy(CAM_POS);
+    fitCam.lookAt(CAM_LOOK);
+    fitCam.updateMatrixWorld(true);
+    fitCam.aspect = aspect;
+    const side = HALF_W + WALL_T + lerp(0.3, 1.2, t);
+    const hudTop = aspect < 1 ? 1 - (2 * 88) / h : 1;   // the HUD covers the top 88 px of an upright screen
+    const ndcY = (x, y, z) => fitV.set(x, y, z).project(fitCam).y;
+    for (let fov = 20; fov < 100; fov += 0.25) {
+      fitCam.fov = fov;
+      fitCam.updateProjectionMatrix();
+      const nearX = fitV.set(side, 0, BOTTOM_Z).project(fitCam).x;
+      if (nearX > 1) continue;                                           // walls cut off at the sides
+      if (ndcY(0, WALL_H, TOP_Z - WALL_T) > hudTop - 0.02) continue;     // far wall under the HUD
+      if (ndcY(0, 5, TOP_Z - 2.5) > 1.02) continue;                      // the Sentinel's head
+      if (ndcY(0, 0, BOTTOM_Z) < -1.02) continue;                        // near edge of the platform
+      return fov;
+    }
+    return 60;
+  }
+
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setPixelRatio(quality.pr);
@@ -3965,18 +4026,15 @@
     renderer.setSize(w, h);
     composer.setSize(w, h);
     const aspect = w / h;
-    // widen the view on narrow (portrait) screens so both walls stay visible:
-    // the near edge of the platform is the widest thing on screen, so fit that
-    const viewDir = new THREE.Vector3().subVectors(CAM_LOOK, CAM_POS).normalize();
-    const nearDepth = new THREE.Vector3(0, 0, BOTTOM_Z).sub(CAM_POS).dot(viewDir);
-    const needHalfW = HALF_W + WALL_T + 2;
-    const fovForWidth = THREE.MathUtils.radToDeg(2 * Math.atan(needHalfW / (nearDepth * aspect)));
-    const fov = Math.max(BASE_FOV, fovForWidth);
+    const fov = handheld() ? frameHandheld(aspect, h) : framePC(aspect);
     [camera, refCam].forEach((c) => {
       c.aspect = aspect;
       c.fov = fov;
       c.updateProjectionMatrix();
     });
+    refCam.position.copy(CAM_POS);
+    refCam.lookAt(CAM_LOOK);
+    refCam.updateMatrixWorld(true);
     const pr = quality.pr;
     finalPass.uniforms.uRes.value.set(w * pr, h * pr);
     pMat.uniforms.uScale.value = (h * pr) / (2 * Math.tan(THREE.MathUtils.degToRad(fov) / 2));
@@ -3988,8 +4046,21 @@
   }
   window.addEventListener('resize', resize);
 
+  // How often the screen refreshes: the 20th percentile of the last 120 frame times.
+  // Menus draw at half rate, so there the frames come as fast as the screen allows.
+  function measureDisplay(realDt) {
+    if (realDt < 1 / 250 || realDt > 1 / 20) return;
+    quality.dts.push(realDt);
+    if (quality.dts.length < 120) return;
+    const p20 = quality.dts.sort((a, b) => a - b)[24];
+    quality.dts.length = 0;
+    quality.displayDt = Math.min(quality.displayDt, p20);
+  }
+
   // Adaptive quality: if the frame rate sags, lower the render resolution in
   // steps, and as a last resort switch the mirror floor off.
+  // PC only reacts below 45 FPS. Phones and tablets aim for the screen's own
+  // refresh rate (60, 90 or 120 Hz) and trade some sharpness for smooth frames.
   function monitorQuality(realDt) {
     if (DEBUG.hq || settings.quality !== 'auto' || menuOpen || document.hidden || realDt > 0.25) return;
     quality.acc += realDt;
@@ -3998,14 +4069,16 @@
     const avg = quality.acc / quality.frames;
     quality.acc = 0;
     quality.frames = 0;
-    if (avg < 1 / 45) return;
+    const slow = avg > 1 / 45;
+    const behind = handheld() && avg > quality.displayDt * 1.2;
+    if (!slow && !behind) return;
     if (quality.pr > 1.01) {
       quality.pr = Math.max(1, quality.pr - 0.25);
       resize();
     } else if (reflector && quality.reflect) {
       quality.reflect = false;
       reflector.visible = false;
-    } else if (MOBILE && quality.pr > 0.76) {
+    } else if (slow && handheld() && quality.pr > 0.76) {
       // a slow phone may go below 1: a softer picture beats a stuttering game
       quality.pr = Math.max(0.75, quality.pr - 0.25);
       resize();
@@ -4017,7 +4090,7 @@
     if (k === 'master' || k === 'music' || k === 'sfx') audio.applyVolumes();
     else if (k === 'bloom') { bloom.strength = BLOOM * (settings.bloom / 100); bloom.enabled = settings.bloom > 0; }
     else if (k === 'quality' || k === 'reflect') {
-      quality.pr = QUALITY_PR[settings.quality] || MAX_PR;
+      quality.pr = qualityPr(settings.quality);
       quality.reflect = settings.reflect && settings.quality !== 'low';
       if (reflector) reflector.visible = quality.reflect;
       resize();
@@ -4035,6 +4108,15 @@
     get muted() { return audio.muted; },
     toggleMute() { const m = audio.toggleMute(); $('mute-ind').classList.toggle('hidden', !m); return m; },
   };
+  // the player picked a device (start question or settings, js/mobil.js):
+  // camera, render resolution and frame-rate target follow right away
+  window.addEventListener('neon-platform', (e) => {
+    // a phone gets the mirror floor off the first time: it costs a lot of FPS
+    if (e.detail && e.detail.first && platform() === 'phone') NEON.settings.set('reflect', false);
+    quality.pr = qualityPr(settings.quality);
+    resize();
+  });
+
   const fpsMeter = { t: 0, n: 0 };
   function countFps(realDt) {
     if (!settings.fps) return;
@@ -4154,6 +4236,7 @@
     const dt = Math.min(realDt, 1 / 30);
     if (isLocked() && !wantLock()) document.exitPointerLock();   // menus always get the real cursor back
     countFps(realDt);
+    measureDisplay(realDt);
     if (occluded) return;
     tick(dt);
     monitorQuality(realDt);
@@ -4161,6 +4244,11 @@
     if (menuOpen) { skip = !skip; if (skip) return; }
     finalPass.uniforms.uTime.value = time;
     finalPass.uniforms.uGlitch.value = game.glitch;
+    // small screens look darker: phones and tablets get more light and a softer vignette,
+    // the RPG battle (lots of dark heroes on a dark floor) a little extra
+    const rpgBoost = game.mode === 'marble' && !game.demo ? 0.12 : 0;
+    finalPass.uniforms.uGain.value = (handheld() ? 1.14 : 1) + rpgBoost;
+    finalPass.uniforms.uVig.value = handheld() ? 0.2 : 0.45;
     composer.render();
   }
 })();

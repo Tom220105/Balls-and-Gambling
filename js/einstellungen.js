@@ -20,6 +20,10 @@
   const isTouch = () => document.body.classList.contains('touch');
 
   const ROWS = [
+    { group: 'DEVICE' },
+    { k: '_platform', label: 'Playing on', hint: 'Sets up the camera, the graphics and the controls', type: 'choice',
+      options: [['pc', 'PC'], ['phone', 'PHONE'], ['tablet', 'TABLET']],
+      get: () => NEON.platform, set: (v) => { if (NEON.setPlatform) NEON.setPlatform(v); render(); } },
     { group: 'AUDIO' },
     { k: 'master', label: 'Master volume', type: 'slider', max: 100, unit: '%' },
     { k: 'music', label: 'Music', type: 'slider', max: 100, unit: '%' },
@@ -90,9 +94,13 @@
         });
       } else if (row.type === 'choice') {
         ctrl.innerHTML = '<div class="set-choice">' + row.options.map(([v, l]) => `<button data-v="${v}">${l}</button>`).join('') + '</div>';
-        const paint = () => ctrl.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.get(row.k)));
+        const paint = () => ctrl.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === valueOf(row)));
         paint();
-        ctrl.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { S.set(row.k, b.dataset.v); play('click'); paint(); }));
+        ctrl.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+          if (row.set) row.set(b.dataset.v); else S.set(row.k, b.dataset.v);
+          play('click');
+          paint();
+        }));
       }
       section.appendChild(el);
     });
