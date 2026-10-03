@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Sling Heroes</title>
+  <meta name="description" content="Sling Heroes: a 3D fantasy marble RPG. Collect heroes, sling them across the arena, chain combos and unleash hyper strikes. Runs in the browser on PC, tablet and phone.">
+  <meta name="theme-color" content="#1a1f33">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Sling Heroes">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap">
+  <link rel="stylesheet" href="css/heroes.css">
+</head>
+<body>
+  <div id="app">
+    <div id="stage"></div>
+    <div id="town-labels" class="hidden"></div>
+    <div id="world-ui"></div>
+    <div id="fx-layer"></div>
+
+    <!-- town HUD -->
+    <div id="hud" class="hidden">
+      <div id="topbar">
+        <button class="tb-avatar" id="tb-avatar"><img id="tb-face" alt=""><b id="tb-lv">1</b></button>
+        <div class="tb-mid">
+          <div class="tb-res">
+            <div class="res" data-res="gems"><i class="ri" data-icon="gems"></i><span id="r-gems">0</span><button class="plus" data-plus="gems">+</button></div>
+            <div class="res" data-res="gold"><i class="ri" data-icon="gold"></i><span id="r-gold">0</span><button class="plus" data-plus="gold">+</button></div>
+            <div class="res" data-res="stamina"><i class="ri" data-icon="stamina"></i><span id="r-stamina">0</span><button class="plus" data-plus="stamina">+</button></div>
+          </div>
+          <div class="tb-team"><span id="tb-name">Commander</span><span class="tb-tl">Team Lv <b id="tb-tlv">1</b></span><div class="tb-exp"><i id="tb-expfill"></i><em id="tb-exptext">0/100</em></div></div>
+        </div>
+      </div>
+      <div id="side-left" class="side">
+        <button class="side-btn" data-side="login"><i data-icon="gift"></i><span>Daily Gift</span><b class="dot"></b></button>
+        <button class="side-btn" data-side="mail"><i data-icon="mail"></i><span>Mail</span><b class="dot"></b></button>
+        <button class="side-btn" data-side="expedition"><i data-icon="compass"></i><span>Expedition</span><b class="dot"></b></button>
+      </div>
+      <div id="side-right" class="side">
+        <button class="side-btn" data-side="summon"><i data-icon="wish"></i><span>Make a Wish</span><b class="dot"></b></button>
+        <button class="side-btn" data-side="arena"><i data-icon="swords"></i><span>Arena</span><b class="dot"></b></button>
+        <button class="side-btn" data-side="settings"><i data-icon="cog"></i><span>Settings</span></button>
+      </div>
+      <nav id="bottom-nav">
+        <button data-nav="heroes"><i data-icon="nav_heroes"></i><span>Heroes</span><b class="dot"></b></button>
+        <button data-nav="mastery"><i data-icon="nav_mastery"></i><span>Mastery</span><b class="dot"></b></button>
+        <button data-nav="missions"><i data-icon="nav_missions"></i><span>Missions</span><b class="dot"></b></button>
+        <button data-nav="inventory"><i data-icon="nav_inventory"></i><span>Inventory</span><b class="dot"></b></button>
+        <button data-nav="shop"><i data-icon="nav_shop"></i><span>Shop</span><b class="dot"></b></button>
+      </nav>
+    </div>
+
+    <div id="panels"></div>
+    <div id="battle-hud" class="hidden"></div>
+    <div id="cutin" class="hidden"></div>
+    <div id="modal-layer"></div>
+    <div id="toasts"></div>
+
+    <!-- loading screen: stays until the town, the heroes and every shader are ready -->
+    <div id="loading">
+      <div class="ld-sky"></div>
+      <div class="ld-logo"><span class="ld-l1">SLING</span><span class="ld-l2">HEROES</span></div>
+      <div class="ld-bar"><i id="ld-fill"></i></div>
+      <div class="ld-text" id="ld-text">Loading</div>
+      <div class="ld-tip" id="ld-tip"></div>
+    </div>
+  </div>
+
+  <script src="../js/lib/three.min.js"></script>
+  <script src="../js/lib/CopyShader.js"></script>
+  <script src="../js/lib/LuminosityHighPassShader.js"></script>
+  <script src="../js/lib/EffectComposer.js"></script>
+  <script src="../js/lib/MaskPass.js"></script>
+  <script src="../js/lib/RenderPass.js"></script>
+  <script src="../js/lib/ShaderPass.js"></script>
+  <script src="../js/lib/UnrealBloomPass.js"></script>
+  <script src="../js/lib/RoundedBoxGeometry.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/chars.js"></script>
+  <script src="js/monsters.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/town.js"></script>
+  <script src="js/showroom.js"></script>
+  <script src="js/worldmap.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/battle.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/menus.js"></script>
+  <script src="js/modes.js"></script>
+  <script src="js/music.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

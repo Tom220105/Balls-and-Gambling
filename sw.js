@@ -53,7 +53,8 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      // only our own old caches: Sling Heroes (heroes/) keeps its own cache on the same site
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('balls-gambling') && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
