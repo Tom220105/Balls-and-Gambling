@@ -1,4 +1,4 @@
-# RGB Steuerung (Version 1.9)
+# RGB Steuerung (Version 2.0)
 
 Kleines Windows Tool, mit dem man die RGB Beleuchtung im PC einstellt:
 Mainboard (ASUS Aura), Lian Li Lüfter, Strimer Kabel, Galahad II Pumpe,
@@ -12,6 +12,16 @@ mit dem Knopf "PawnIO installieren (für RAM)" installieren.
 
 Wichtig: L-Connect, Armoury Crate, SignalRGB und OpenRGB müssen komplett
 geschlossen sein, sonst überschreiben sie die Farben wieder.
+
+## Neu in Version 2.0
+
+Auf der Seite "Presets" gibt es jetzt den Knopf "Neues Preset erstellen ...".
+Damit öffnet sich ein eigenes Fenster, in dem man für jedes Gerät Effekt,
+Farbe, Helligkeit und Tempo einstellt, einen Namen eingibt und auf
+"Preset speichern" drückt. Die Farben am PC ändern sich dabei noch nicht.
+Mit "Für alle übernehmen" gilt die Vorlage für alle Geräte, und mit
+"Streifen ..." kann man die Strimer Streifen einzeln einstellen.
+Das neue Preset steht danach in der Liste und kann wie die anderen geladen werden.
 
 ## Was in Version 1.9 repariert wurde
 

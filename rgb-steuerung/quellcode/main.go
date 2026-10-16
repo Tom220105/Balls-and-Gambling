@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const version = "1.9"
+const version = "2.0"
 
 var (
 	mw           *walk.MainWindow
@@ -536,7 +536,18 @@ func updateStripBtn() {
 // showStrimerDialog ist das Fenster fuer die 12 einzelnen Strimer Streifen.
 func showStrimerDialog() {
 	saveFromUI()
+	editStrips(mw, &cfg, devRows[DevStrimer], "Alle wie Hauptfenster", func() {
+		updateStripBtn()
+		if err := SaveConfig(cfg); err != nil {
+			logf("Einstellungen speichern: %v", err)
+		}
+	}, true)
+}
 
+// editStrips zeigt die 12 Strimer Streifen von c zum Einstellen.
+// mainRow ist die Strimer Zeile, von der "Alle wie ..." die Einstellung holt.
+// afterSave wird nach jedem Speichern aufgerufen. Mit withApply gibt es auch den Knopf "Anwenden".
+func editStrips(owner walk.Form, c *Config, mainRow *row, likeText string, afterSave func(), withApply bool) {
 	var dlg *walk.Dialog
 	var chk *walk.CheckBox
 	var hint *walk.Label
@@ -550,7 +561,7 @@ func showStrimerDialog() {
 		Label{Text: "Tempo"},
 	}
 	for i := range rows {
-		rows[i] = &row{title: stripNames[i], s: cfg.Strimer[i], effects: stripEffects}
+		rows[i] = &row{title: stripNames[i], s: c.Strimer[i], effects: stripEffects}
 		if i == 6 {
 			items = append(items, VSpacer{ColumnSpan: 5, Size: 6})
 		}
@@ -561,18 +572,17 @@ func showStrimerDialog() {
 	save := func() {
 		for i, r := range rows {
 			r.readUI()
-			cfg.Strimer[i] = r.s
+			c.Strimer[i] = r.s
 		}
-		cfg.StrimerEinzeln = chk.Checked()
-		updateStripBtn()
-		if err := SaveConfig(cfg); err != nil {
-			logf("Einstellungen speichern: %v", err)
+		c.StrimerEinzeln = chk.Checked()
+		if afterSave != nil {
+			afterSave()
 		}
 	}
 	likeMain := func() {
-		devRows[DevStrimer].readUI()
+		mainRow.readUI()
 		for _, r := range rows {
-			r.s = devRows[DevStrimer].s
+			r.s = mainRow.s
 			r.writeUI()
 		}
 	}
@@ -583,11 +593,11 @@ func showStrimerDialog() {
 			return
 		}
 		hint.SetText("wird gesetzt ...")
-		c := cfg
+		cc := *c
 		f := found
 		go func() {
 			applyMu.Lock()
-			err := Apply(DevStrimer, f, &c)
+			err := Apply(DevStrimer, f, &cc)
 			applyMu.Unlock()
 			res := "ok"
 			if err != nil {
@@ -604,6 +614,21 @@ func showStrimerDialog() {
 		}()
 	}
 
+	buttons := []Widget{
+		Label{AssignTo: &hint},
+		HSpacer{},
+		PushButton{Text: likeText, MinSize: Size{Width: 130}, OnClicked: likeMain},
+	}
+	if withApply {
+		buttons = append(buttons, PushButton{Text: "Anwenden", OnClicked: func() {
+			chk.SetChecked(true)
+			apply()
+		}})
+	}
+	buttons = append(buttons, PushButton{Text: "Schließen", OnClicked: func() {
+		dlg.Accept()
+	}})
+
 	err := Dialog{
 		AssignTo: &dlg,
 		Title:    "Strimer Streifen einzeln",
@@ -612,8 +637,8 @@ func showStrimerDialog() {
 		Children: []Widget{
 			CheckBox{
 				AssignTo: &chk,
-				Text:     "Streifen einzeln einstellen (sonst gilt die Strimer Zeile im Hauptfenster)",
-				Checked:  cfg.StrimerEinzeln,
+				Text:     "Streifen einzeln einstellen (sonst gilt die Strimer Zeile)",
+				Checked:  c.StrimerEinzeln,
 			},
 			Label{Text: "Dein Strimer hängt am 24 Pin Kabel. Die GPU Kabel Streifen gelten nur, wenn du auch ein Strimer Grafikkarten Kabel hast."},
 			Composite{
@@ -622,24 +647,13 @@ func showStrimerDialog() {
 			},
 			VSpacer{},
 			Composite{
-				Layout: HBox{MarginsZero: true},
-				Children: []Widget{
-					Label{AssignTo: &hint},
-					HSpacer{},
-					PushButton{Text: "Alle wie Hauptfenster", MinSize: Size{Width: 130}, OnClicked: likeMain},
-					PushButton{Text: "Anwenden", OnClicked: func() {
-						chk.SetChecked(true)
-						apply()
-					}},
-					PushButton{Text: "Schließen", OnClicked: func() {
-						dlg.Accept()
-					}},
-				},
+				Layout:   HBox{MarginsZero: true},
+				Children: buttons,
 			},
 		},
-	}.Create(mw)
+	}.Create(owner)
 	if err != nil {
-		walk.MsgBox(mw, "RGB Steuerung", "Dialog Fehler: "+err.Error(), walk.MsgBoxIconError)
+		walk.MsgBox(owner, "RGB Steuerung", "Dialog Fehler: "+err.Error(), walk.MsgBoxIconError)
 		return
 	}
 	for _, r := range rows {
@@ -650,6 +664,155 @@ func showStrimerDialog() {
 	dlg.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
 		save()
 	})
+	dlg.Run()
+}
+
+// showCreatePreset ist das Fenster "Neues Preset erstellen". Man stellt alles ein und
+// speichert es unter einem Namen. Die Farben am PC aendern sich dabei nicht.
+func showCreatePreset() {
+	saveFromUI()
+	draft := cfg // die aktuelle Einstellung ist der Startpunkt
+
+	var dlg *walk.Dialog
+	var nameEdit *walk.LineEdit
+	var hint *walk.Label
+	var stripsBtn *walk.PushButton
+
+	tmpl := &row{title: "Vorlage für alle", s: draft.All, effects: effectNames}
+	var rows [DevCount]*row
+	for i := range rows {
+		eff := effectNames
+		if i == DevStrimer {
+			eff = stripEffects
+		}
+		rows[i] = &row{title: deviceNames[i], s: draft.Devices[i], effects: eff}
+	}
+
+	stripsText := func() string {
+		if draft.StrimerEinzeln {
+			return "Streifen: einzeln"
+		}
+		return "Streifen ..."
+	}
+	allFromTemplate := func() {
+		tmpl.readUI()
+		draft.All = tmpl.s
+		for _, r := range rows {
+			r.s = tmpl.s
+			r.writeUI()
+		}
+		for i := range draft.Strimer {
+			draft.Strimer[i] = tmpl.s
+		}
+		draft.StrimerEinzeln = false
+		stripsBtn.SetText(stripsText())
+	}
+	editPresetStrips := func() {
+		editStrips(dlg, &draft, rows[DevStrimer], "Alle wie Strimer Zeile", func() {
+			stripsBtn.SetText(stripsText())
+		}, false)
+	}
+	save := func() {
+		name := strings.TrimSpace(nameEdit.Text())
+		if name == "" {
+			walk.MsgBox(dlg, "RGB Steuerung", "Bitte gib zuerst einen Namen ein.", walk.MsgBoxIconInformation)
+			return
+		}
+		if _, ok := findPreset(name); ok {
+			if walk.MsgBox(dlg, "RGB Steuerung", "Ein Preset \""+name+"\" gibt es schon. Überschreiben?",
+				walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) != walk.DlgCmdYes {
+				return
+			}
+		}
+		tmpl.readUI()
+		draft.All = tmpl.s
+		for i, r := range rows {
+			r.readUI()
+			draft.Devices[i] = r.s
+		}
+		presets[name] = draft
+		if err := SavePresets(presets); err != nil {
+			hint.SetText("Fehler: " + err.Error())
+			return
+		}
+		refreshPresetList()
+		presetName.SetText(name)
+		for i, n := range presetNames {
+			if n == name {
+				presetList.SetCurrentIndex(i)
+			}
+		}
+		setPresetStatus("Preset \""+name+"\" erstellt.", true)
+		dlg.Accept()
+	}
+
+	header := func() []Widget {
+		return []Widget{
+			Label{},
+			Label{Text: "Effekt"},
+			Label{Text: "Farbe"},
+			Label{Text: "Helligkeit"},
+			Label{Text: "Tempo"},
+			Label{},
+		}
+	}
+	grid := header()
+	grid = append(grid, Label{Text: tmpl.title, Font: Font{Family: "Segoe UI", PointSize: 9, Bold: true}})
+	grid = append(grid, settingWidgets(tmpl)...)
+	grid = append(grid, PushButton{Text: "Für alle übernehmen", MinSize: Size{Width: 120}, OnClicked: allFromTemplate})
+	grid = append(grid, VSpacer{ColumnSpan: 6, Size: 6})
+	for i, r := range rows {
+		grid = append(grid, Label{Text: r.title, Font: Font{Family: "Segoe UI", PointSize: 9}})
+		grid = append(grid, settingWidgets(r)...)
+		if i == DevStrimer {
+			grid = append(grid, PushButton{AssignTo: &stripsBtn, Text: stripsText(), MinSize: Size{Width: 120}, OnClicked: editPresetStrips})
+		} else {
+			grid = append(grid, Label{})
+		}
+	}
+
+	err := Dialog{
+		AssignTo: &dlg,
+		Title:    "Neues Preset erstellen",
+		MinSize:  Size{Width: 820, Height: 480},
+		Layout:   VBox{},
+		Children: []Widget{
+			Label{Text: "Stell hier ein, wie das Preset aussehen soll. Die Farben am PC ändern sich dabei noch nicht."},
+			Composite{
+				Layout: HBox{MarginsZero: true},
+				Children: []Widget{
+					Label{Text: "Name:"},
+					LineEdit{AssignTo: &nameEdit, MinSize: Size{Width: 260}},
+					HSpacer{},
+				},
+			},
+			Composite{
+				Layout:   Grid{Columns: 6, Spacing: 8},
+				Children: grid,
+			},
+			VSpacer{},
+			Composite{
+				Layout: HBox{MarginsZero: true},
+				Children: []Widget{
+					Label{AssignTo: &hint},
+					HSpacer{},
+					PushButton{Text: "Preset speichern", MinSize: Size{Width: 110}, OnClicked: save},
+					PushButton{Text: "Abbrechen", OnClicked: func() { dlg.Cancel() }},
+				},
+			},
+		},
+	}.Create(mw)
+	if err != nil {
+		walk.MsgBox(mw, "RGB Steuerung", "Dialog Fehler: "+err.Error(), walk.MsgBoxIconError)
+		return
+	}
+	tmpl.owner = dlg
+	tmpl.writeUI()
+	for _, r := range rows {
+		r.owner = dlg
+		r.writeUI()
+	}
+	nameEdit.SetFocus()
 	dlg.Run()
 }
 
@@ -688,17 +851,33 @@ func presetsPage() TabPage {
 					PushButton{Text: "Nur laden", MinSize: Size{Width: 80}, OnClicked: func() { loadPreset(false) }},
 					PushButton{Text: "Löschen", MinSize: Size{Width: 80}, OnClicked: deletePreset},
 					HSpacer{},
+					PushButton{Text: "Neues Preset erstellen ...", MinSize: Size{Width: 160}, OnClicked: showCreatePreset},
 				},
 			},
-			CheckBox{
-				AssignTo:  &presetRAM,
-				Text:      "RAM auch setzen (fragt jedes Mal nach Admin Rechten)",
-				Alignment: AlignHNearVCenter,
+			// Die Meldung steht in der gleichen Zeile wie die RAM Box, damit die Seite nicht verrutscht
+			Composite{
+				Layout: HBox{MarginsZero: true, Spacing: 20},
+				Children: []Widget{
+					CheckBox{
+						AssignTo: &presetRAM,
+						Text:     "RAM auch setzen (fragt jedes Mal nach Admin Rechten)",
+					},
+					Label{AssignTo: &presetStatus, TextColor: walk.RGB(0, 130, 0)},
+					HSpacer{},
+				},
 			},
-			Label{AssignTo: &presetStatus},
-			VSpacer{},
 			Label{Text: "Die eingebauten Presets (Alles Weiß, Valorant Rot, Regenbogen, Alles aus, Weiß mit Aufladen, Sonnenuntergang) kann man nicht löschen, aber mit eigenem Namen überschreiben."},
 		},
+	}
+}
+
+// setPresetStatus zeigt eine Meldung auf der Presets Seite (gruen = ok, rot = Fehler).
+func setPresetStatus(text string, ok bool) {
+	presetStatus.SetText(text)
+	if ok {
+		presetStatus.SetTextColor(walk.RGB(0, 130, 0))
+	} else {
+		presetStatus.SetTextColor(walk.RGB(190, 0, 0))
 	}
 }
 
@@ -724,11 +903,11 @@ func savePreset() {
 	saveFromUI()
 	presets[name] = cfg
 	if err := SavePresets(presets); err != nil {
-		presetStatus.SetText("Fehler: " + err.Error())
+		setPresetStatus("Fehler: "+err.Error(), false)
 		return
 	}
 	refreshPresetList()
-	presetStatus.SetText("Preset \"" + name + "\" gespeichert.")
+	setPresetStatus("Preset \""+name+"\" gespeichert.", true)
 }
 
 func loadPreset(apply bool) {
@@ -759,7 +938,7 @@ func loadPreset(apply bool) {
 	}
 
 	if !apply {
-		presetStatus.SetText("Preset \"" + name + "\" geladen.")
+		setPresetStatus("Preset \""+name+"\" geladen.", true)
 		tabs.SetCurrentIndex(0)
 		return
 	}
@@ -774,7 +953,7 @@ func loadPreset(apply bool) {
 	}
 	logf("Preset %q anwenden", name)
 	applyDevices(idx...)
-	presetStatus.SetText("Preset \"" + name + "\" wurde angewendet.")
+	setPresetStatus("Preset \""+name+"\" wurde angewendet.", true)
 	tabs.SetCurrentIndex(0)
 }
 
@@ -793,11 +972,11 @@ func deletePreset() {
 	}
 	delete(presets, name)
 	if err := SavePresets(presets); err != nil {
-		presetStatus.SetText("Fehler: " + err.Error())
+		setPresetStatus("Fehler: "+err.Error(), false)
 	}
 	refreshPresetList()
 	presetName.SetText("")
-	presetStatus.SetText("Preset \"" + name + "\" gelöscht.")
+	setPresetStatus("Preset \""+name+"\" gelöscht.", true)
 }
 
 // ---------- Geraete Infos ----------
