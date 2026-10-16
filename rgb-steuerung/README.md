@@ -1,4 +1,4 @@
-# RGB Steuerung (Version 2.0)
+# RGB Steuerung (Version 2.1)
 
 Kleines Windows Tool, mit dem man die RGB Beleuchtung im PC einstellt:
 Mainboard (ASUS Aura), Lian Li Lüfter, Strimer Kabel, Galahad II Pumpe,
@@ -12,6 +12,23 @@ mit dem Knopf "PawnIO installieren (für RAM)" installieren.
 
 Wichtig: L-Connect, Armoury Crate, SignalRGB und OpenRGB müssen komplett
 geschlossen sein, sonst überschreiben sie die Farben wieder.
+
+## Neu in Version 2.1
+
+Die Lüfter kann man jetzt einzeln einstellen. Dafür gibt es in der Zeile
+"Lüfter innen" den Knopf "Einzeln ...". Im Fenster gibt es für jeden Anschluss
+vom Lian Li Hub einen Reiter:
+
+1. Bei "Lüfter an diesem Anschluss" stellt man ein, wie viele Lüfter dort in
+   einer Reihe hängen (0 bis 4). Lüfter die es nicht gibt, werden grau.
+2. Den Effekt, die Helligkeit und das Tempo gibt es für den ganzen Anschluss,
+   einmal für innen (Mitte vom Lüfter) und einmal für außen (Rand).
+3. Die Farbe kann jeder Lüfter selbst haben, innen und außen getrennt.
+   Das klappt bei den Effekten Statisch und Atmen.
+4. Haken bei "Lüfter einzeln einstellen" setzen und auf "Anwenden" drücken.
+
+Die einzelnen Lüfter werden auch in Presets gespeichert. Im Fenster
+"Neues Preset erstellen" gibt es dafür den Knopf "Lüfter einzeln ...".
 
 ## Neu in Version 2.0
 

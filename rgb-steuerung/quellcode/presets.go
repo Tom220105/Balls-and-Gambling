@@ -24,6 +24,9 @@ func builtinPresets() map[string]Config {
 		for i := range c.Strimer {
 			c.Strimer[i] = s
 		}
+		for i := range c.Fans {
+			c.Fans[i] = fanPortFrom(s, s)
+		}
 		return c
 	}
 

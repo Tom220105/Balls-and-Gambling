@@ -16,6 +16,8 @@ type Config struct {
 	StrimerEinzeln bool
 	Strimer        [12]Setting
 	NoFanLimit     bool
+	FanEinzeln     bool
+	Fans           [4]FanPort
 }
 
 // So steht es in der Datei
@@ -25,6 +27,8 @@ type configFile struct {
 	StrimerEinzeln bool               `json:"strimer_einzeln"`
 	Strimer        []Setting          `json:"strimer_streifen"`
 	NoFanLimit     bool               `json:"luefter_ohne_begrenzung"`
+	FanEinzeln     bool               `json:"luefter_einzeln"`
+	Fans           []FanPort          `json:"luefter_anschluesse"`
 }
 
 func DefaultConfig() Config {
@@ -34,6 +38,9 @@ func DefaultConfig() Config {
 	}
 	for i := range c.Strimer {
 		c.Strimer[i] = DefaultSetting
+	}
+	for i := range c.Fans {
+		c.Fans[i] = fanPortFrom(DefaultSetting, DefaultSetting)
 	}
 	return c
 }
@@ -61,6 +68,15 @@ func configFromFile(f configFile) Config {
 			c.Strimer[i] = f.Strimer[i].clamp()
 		}
 	}
+	// Ältere Dateien haben noch keine einzelnen Lüfter, dann von den Lüfter Zeilen übernehmen
+	c.FanEinzeln = f.FanEinzeln
+	for i := range c.Fans {
+		if i < len(f.Fans) {
+			c.Fans[i] = f.Fans[i].clamp()
+		} else {
+			c.Fans[i] = fanPortFrom(c.Devices[DevFanIn], c.Devices[DevFanOut])
+		}
+	}
 	return c
 }
 
@@ -71,6 +87,8 @@ func configToFile(c Config) configFile {
 		StrimerEinzeln: c.StrimerEinzeln,
 		Strimer:        append([]Setting{}, c.Strimer[:]...),
 		NoFanLimit:     c.NoFanLimit,
+		FanEinzeln:     c.FanEinzeln,
+		Fans:           append([]FanPort{}, c.Fans[:]...),
 	}
 	for i, k := range deviceKeys {
 		f.Geraete[k] = c.Devices[i]

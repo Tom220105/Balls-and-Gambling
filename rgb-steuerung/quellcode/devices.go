@@ -207,7 +207,7 @@ func Apply(dev int, f *Found, cfg *Config) error {
 	case DevAura:
 		return applyAura(d, s)
 	case DevFanIn, DevFanOut:
-		return applyUniHub(d, cfg.Devices[DevFanIn].clamp(), cfg.Devices[DevFanOut].clamp(), cfg.NoFanLimit)
+		return applyUniHub(d, cfg)
 	case DevStrimer:
 		var strips [12]Setting
 		for i := range strips {
@@ -358,7 +358,62 @@ func applyAura(d *HidDevice, s Setting) error {
 
 // ---------- Lian Li UniHub (Luefter) ----------
 
-func uniHubFor(s Setting, n int, noLimit bool) (mode, speed, bright byte, data []byte) {
+// Jeder Lüfter belegt im Hub 16 LEDs pro Kanal (wie bei OpenRGB)
+const ledsPerFan = 16
+
+// RGB ist eine Farbe (Rot, Grün, Blau)
+type RGB [3]uint8
+
+// FanPort ist ein Anschluss am Lian Li Hub mit bis zu 4 Lüftern in einer Reihe.
+// Den Effekt gibt es nur für den ganzen Anschluss, die Farbe hat jeder Lüfter selbst.
+type FanPort struct {
+	Count       int     `json:"anzahl"`
+	Inner       Setting `json:"innen"`
+	Outer       Setting `json:"aussen"`
+	InnerColors [4]RGB  `json:"farben_innen"`
+	OuterColors [4]RGB  `json:"farben_aussen"`
+}
+
+// fanPortFrom macht einen Anschluss, bei dem alle Lüfter gleich sind.
+func fanPortFrom(inner, outer Setting) FanPort {
+	fp := FanPort{Count: 4, Inner: inner, Outer: outer}
+	for i := range fp.InnerColors {
+		fp.InnerColors[i] = RGB{inner.R, inner.G, inner.B}
+		fp.OuterColors[i] = RGB{outer.R, outer.G, outer.B}
+	}
+	return fp
+}
+
+func (fp FanPort) clamp() FanPort {
+	if fp.Count < 0 || fp.Count > 4 {
+		fp.Count = 4
+	}
+	fp.Inner = fp.Inner.clamp()
+	fp.Outer = fp.Outer.clamp()
+	return fp
+}
+
+// hubColor rechnet die Farbe mit Helligkeit und der Lian Li Begrenzung aus.
+func hubColor(s Setting, c RGB, noLimit bool) (r, g, b uint8) {
+	t := s
+	t.R, t.G, t.B = c[0], c[1], c[2]
+	r, g, b = scaleColor(t)
+	if !noLimit {
+		// Lian Li begrenzt die Summe, sonst wird der Hub zu warm
+		sum := int(r) + int(g) + int(b)
+		if sum > 460 {
+			k := 460.0 / float64(sum)
+			r = uint8(float64(r) * k)
+			g = uint8(float64(g) * k)
+			b = uint8(float64(b) * k)
+		}
+	}
+	return
+}
+
+// uniHubFor macht die Werte für einen Kanal. Wenn fanColors gesetzt ist,
+// bekommt jeder Lüfter seine eigene Farbe, sonst alle die Farbe aus s.
+func uniHubFor(s Setting, n int, noLimit bool, fanColors []RGB) (mode, speed, bright byte, data []byte) {
 	useColor := true
 	switch s.Effect {
 	case EffStatic:
@@ -388,18 +443,16 @@ func uniHubFor(s Setting, n int, noLimit bool) (mode, speed, bright byte, data [
 
 	data = make([]byte, n*3)
 	if useColor && s.Effect != EffOff {
-		r, g, b := scaleColor(s)
-		if !noLimit {
-			// Lian Li begrenzt die Summe, sonst wird der Hub zu warm
-			sum := int(r) + int(g) + int(b)
-			if sum > 460 {
-				k := 460.0 / float64(sum)
-				r = uint8(float64(r) * k)
-				g = uint8(float64(g) * k)
-				b = uint8(float64(b) * k)
-			}
-		}
 		for i := 0; i < n; i++ {
+			c := RGB{s.R, s.G, s.B}
+			if len(fanColors) > 0 {
+				f := i / ledsPerFan
+				if f >= len(fanColors) {
+					f = len(fanColors) - 1
+				}
+				c = fanColors[f]
+			}
+			r, g, b := hubColor(s, c, noLimit)
 			data[3*i] = r
 			data[3*i+1] = b
 			data[3*i+2] = g
@@ -408,20 +461,39 @@ func uniHubFor(s Setting, n int, noLimit bool) (mode, speed, bright byte, data [
 	return
 }
 
-func applyUniHub(d *HidDevice, inner, outer Setting, noLimit bool) error {
+func applyUniHub(d *HidDevice, c *Config) error {
 	inf := d.Info.PID == 0xA102
 	channels := 4
 	if inf {
 		channels = 8
 	}
 	const leds = 96
+	inner := c.Devices[DevFanIn].clamp()
+	outer := c.Devices[DevFanOut].clamp()
 
 	for ch := 0; ch < channels; ch++ {
+		// Beim SL Infinity hat jeder Anschluss zwei Kanäle: gerade = innen, ungerade = außen
+		port, isOuter := ch, false
+		if inf {
+			port, isOuter = ch/2, ch%2 == 1
+		}
 		s := inner
-		if inf && ch%2 == 1 {
+		if isOuter {
 			s = outer
 		}
-		mode, speed, bright, data := uniHubFor(s, leds, noLimit)
+		var cols []RGB
+		if c.FanEinzeln && port < len(c.Fans) {
+			fp := c.Fans[port].clamp()
+			if fp.Count == 0 {
+				continue // an diesem Anschluss hängt nichts
+			}
+			if isOuter {
+				s, cols = fp.Outer, fp.OuterColors[:fp.Count]
+			} else {
+				s, cols = fp.Inner, fp.InnerColors[:fp.Count]
+			}
+		}
+		mode, speed, bright, data := uniHubFor(s, leds, c.NoFanLimit, cols)
 
 		var x, y byte
 		if inf {

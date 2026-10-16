@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const version = "2.0"
+const version = "2.1"
 
 var (
 	mw           *walk.MainWindow
@@ -29,6 +29,7 @@ var (
 	autostartChk *walk.CheckBox
 	pawnBtn      *walk.PushButton
 	stripBtn     *walk.PushButton
+	fanBtn       *walk.PushButton
 	fanLimitChk  *walk.CheckBox
 	tabs         *walk.TabWidget
 
@@ -200,26 +201,60 @@ func (r *row) ensureColorEffect() {
 }
 
 func (r *row) paintSwatch() {
-	if r.swatch == nil {
+	setSwatch(r.swatch, &r.brush, RGB{r.s.R, r.s.G, r.s.B})
+}
+
+// setSwatch malt ein Farbfeld in der Farbe c an.
+func setSwatch(sw *walk.Composite, old **walk.SolidColorBrush, c RGB) {
+	if sw == nil {
 		return
 	}
-	b, err := walk.NewSolidColorBrush(walk.RGB(r.s.R, r.s.G, r.s.B))
+	b, err := walk.NewSolidColorBrush(walk.RGB(c[0], c[1], c[2]))
 	if err != nil {
 		return
 	}
-	r.swatch.SetBackground(b)
-	if r.brush != nil {
-		r.brush.Dispose()
+	sw.SetBackground(b)
+	if *old != nil {
+		(*old).Dispose()
 	}
-	r.brush = b
+	*old = b
+}
+
+// formHandle gibt das Fenster zurück, über dem der Farbdialog erscheinen soll.
+func formHandle(owner walk.Form) win.HWND {
+	if owner != nil {
+		return owner.Handle()
+	}
+	if mw != nil {
+		return mw.Handle()
+	}
+	return 0
+}
+
+// chooseColor zeigt den Windows Farbdialog.
+func chooseColor(owner walk.Form, c RGB) (RGB, bool) {
+	cc := win.CHOOSECOLOR{
+		HwndOwner:    formHandle(owner),
+		RgbResult:    win.COLORREF(uint32(c[0]) | uint32(c[1])<<8 | uint32(c[2])<<16),
+		LpCustColors: &customColors,
+		Flags:        win.CC_RGBINIT | win.CC_FULLOPEN,
+	}
+	cc.LStructSize = uint32(unsafe.Sizeof(cc))
+	if !win.ChooseColor(&cc) {
+		return c, false
+	}
+	v := uint32(cc.RgbResult)
+	return RGB{uint8(v), uint8(v >> 8), uint8(v >> 16)}, true
 }
 
 func (r *row) updateEnabled() {
 	// Kann schon waehrend dem Erstellen aufgerufen werden, dann gibt es noch nicht alle Knoepfe
-	if r.colorBtn == nil || r.bright == nil || r.speed == nil {
+	if r.bright == nil || r.speed == nil {
 		return
 	}
-	r.colorBtn.SetEnabled(true)
+	if r.colorBtn != nil {
+		r.colorBtn.SetEnabled(true)
+	}
 	r.bright.SetEnabled(true)
 	r.speed.SetEnabled(true)
 	if r.applyBtn != nil {
@@ -228,70 +263,104 @@ func (r *row) updateEnabled() {
 }
 
 func (r *row) pickColor() {
-	var hwnd win.HWND
-	if r.owner != nil {
-		hwnd = r.owner.Handle()
-	} else if mw != nil {
-		hwnd = mw.Handle()
-	}
-	cc := win.CHOOSECOLOR{
-		HwndOwner:    hwnd,
-		RgbResult:    win.COLORREF(uint32(r.s.R) | uint32(r.s.G)<<8 | uint32(r.s.B)<<16),
-		LpCustColors: &customColors,
-		Flags:        win.CC_RGBINIT | win.CC_FULLOPEN,
-	}
-	cc.LStructSize = uint32(unsafe.Sizeof(cc))
-	if !win.ChooseColor(&cc) {
+	c, ok := chooseColor(r.owner, RGB{r.s.R, r.s.G, r.s.B})
+	if !ok {
 		return
 	}
-	c := uint32(cc.RgbResult)
-	r.s.R, r.s.G, r.s.B = uint8(c), uint8(c>>8), uint8(c>>16)
+	r.s.R, r.s.G, r.s.B = c[0], c[1], c[2]
 	r.paintSwatch()
 	r.ensureColorEffect()
 }
 
+func effectBox(r *row) Widget {
+	return ComboBox{
+		AssignTo:              &r.effect,
+		Model:                 r.effectList(),
+		MinSize:               Size{Width: 190},
+		OnCurrentIndexChanged: func() { r.updateEnabled() },
+	}
+}
+
+// swatchWidgets ist ein Farbfeld mit "Wählen" Knopf daneben.
+func swatchWidgets(sw **walk.Composite, btn **walk.PushButton, onPick walk.EventHandler) Widget {
+	return Composite{
+		Layout: HBox{MarginsZero: true, Spacing: 4},
+		Children: []Widget{
+			// Das Farbfeld braucht ein Layout, sonst bekommt es von walk die Groesse 0 und ist unsichtbar
+			Composite{
+				AssignTo: sw,
+				Layout:   HBox{MarginsZero: true},
+				MinSize:  Size{Width: 26, Height: 22},
+				MaxSize:  Size{Width: 26, Height: 22},
+			},
+			PushButton{
+				AssignTo:  btn,
+				Text:      "Wählen",
+				MinSize:   Size{Width: 70},
+				OnClicked: onPick,
+			},
+		},
+	}
+}
+
+func brightBox(r *row) Widget {
+	return ComboBox{
+		AssignTo: &r.bright,
+		Model:    brightnessNames,
+		MinSize:  Size{Width: 70},
+		OnCurrentIndexChanged: func() {
+			if r.effect != nil && r.effect.CurrentIndex() == EffOff {
+				r.ensureColorEffect()
+			}
+		},
+	}
+}
+
+func speedBox(r *row) Widget {
+	return ComboBox{
+		AssignTo: &r.speed,
+		Model:    speedNames,
+		MinSize:  Size{Width: 100},
+	}
+}
+
 // settingWidgets sind Effekt, Farbe, Helligkeit und Tempo (4 Spalten im Grid).
 func settingWidgets(r *row) []Widget {
-	return []Widget{
-		ComboBox{
-			AssignTo:              &r.effect,
-			Model:                 r.effectList(),
-			MinSize:               Size{Width: 190},
-			OnCurrentIndexChanged: func() { r.updateEnabled() },
-		},
-		Composite{
-			Layout: HBox{MarginsZero: true, Spacing: 4},
-			Children: []Widget{
-				// Das Farbfeld braucht ein Layout, sonst bekommt es von walk die Groesse 0 und ist unsichtbar
-				Composite{
-					AssignTo: &r.swatch,
-					Layout:   HBox{MarginsZero: true},
-					MinSize:  Size{Width: 26, Height: 22},
-					MaxSize:  Size{Width: 26, Height: 22},
-				},
-				PushButton{
-					AssignTo:  &r.colorBtn,
-					Text:      "Wählen",
-					MinSize:   Size{Width: 70},
-					OnClicked: r.pickColor,
-				},
-			},
-		},
-		ComboBox{
-			AssignTo: &r.bright,
-			Model:    brightnessNames,
-			MinSize:  Size{Width: 70},
-			OnCurrentIndexChanged: func() {
-				if r.effect != nil && r.effect.CurrentIndex() == EffOff {
-					r.ensureColorEffect()
-				}
-			},
-		},
-		ComboBox{
-			AssignTo: &r.speed,
-			Model:    speedNames,
-			MinSize:  Size{Width: 100},
-		},
+	return []Widget{effectBox(r), swatchWidgets(&r.swatch, &r.colorBtn, r.pickColor), brightBox(r), speedBox(r)}
+}
+
+// ringWidgets sind Effekt, Helligkeit und Tempo ohne Farbe (3 Spalten im Grid).
+func ringWidgets(r *row) []Widget {
+	return []Widget{effectBox(r), brightBox(r), speedBox(r)}
+}
+
+// colorCell ist ein einzelnes Farbfeld, zum Beispiel für einen Lüfter.
+type colorCell struct {
+	c     RGB
+	sw    *walk.Composite
+	btn   *walk.PushButton
+	brush *walk.SolidColorBrush
+	owner walk.Form
+}
+
+func (cc *colorCell) widgets() Widget {
+	return swatchWidgets(&cc.sw, &cc.btn, cc.pick)
+}
+
+func (cc *colorCell) paint() {
+	setSwatch(cc.sw, &cc.brush, cc.c)
+}
+
+func (cc *colorCell) pick() {
+	if c, ok := chooseColor(cc.owner, cc.c); ok {
+		cc.c = c
+		cc.paint()
+	}
+}
+
+func (cc *colorCell) setEnabled(on bool) {
+	if cc.btn != nil {
+		cc.btn.SetEnabled(on)
 	}
 }
 
@@ -447,6 +516,7 @@ func applyAll() {
 		cfg.Strimer[i] = cfg.All
 	}
 	cfg.StrimerEinzeln = false
+	fansFromTemplate(&cfg, cfg.All)
 	updateStripBtn()
 
 	var idx []int
@@ -522,15 +592,39 @@ func installPawnIO() {
 	}()
 }
 
+// updateStripBtn zeigt an den "Einzeln" Knöpfen vom Strimer und von den Lüftern, ob es an ist.
 func updateStripBtn() {
-	if stripBtn == nil {
-		return
+	set := func(b *walk.PushButton, on bool) {
+		if b == nil {
+			return
+		}
+		if on {
+			b.SetText("Einzeln: an")
+		} else {
+			b.SetText("Einzeln ...")
+		}
 	}
-	if cfg.StrimerEinzeln {
-		stripBtn.SetText("Einzeln: an")
-	} else {
-		stripBtn.SetText("Einzeln ...")
+	set(stripBtn, cfg.StrimerEinzeln)
+	set(fanBtn, cfg.FanEinzeln)
+}
+
+// keepCounts sorgt dafür, dass die Anzahl Lüfter pro Anschluss bleibt.
+// Wie viele Lüfter wo hängen, gehört zum PC und nicht zur Einstellung.
+func keepCounts(dst *[4]FanPort, src [4]FanPort, old [4]FanPort) {
+	for i := range dst {
+		dst[i] = src[i]
+		dst[i].Count = old[i].Count
 	}
+}
+
+// fansFromTemplate setzt alle Lüfter auf die gleiche Einstellung.
+func fansFromTemplate(c *Config, s Setting) {
+	var all [4]FanPort
+	for i := range all {
+		all[i] = fanPortFrom(s, s)
+	}
+	keepCounts(&c.Fans, all, c.Fans)
+	c.FanEinzeln = false
 }
 
 // showStrimerDialog ist das Fenster fuer die 12 einzelnen Strimer Streifen.
@@ -667,6 +761,236 @@ func editStrips(owner walk.Form, c *Config, mainRow *row, likeText string, after
 	dlg.Run()
 }
 
+// showFanDialog ist das Fenster für die einzelnen Lüfter.
+func showFanDialog() {
+	saveFromUI()
+	editFans(mw, &cfg, devRows[DevFanIn], devRows[DevFanOut], "Alle wie Hauptfenster", func() {
+		updateStripBtn()
+		if err := SaveConfig(cfg); err != nil {
+			logf("Einstellungen speichern: %v", err)
+		}
+	}, true)
+}
+
+// editFans zeigt die 4 Anschlüsse vom Lian Li Hub mit je bis zu 4 Lüftern.
+// Pro Anschluss gibt es einen Effekt für innen und einen für außen, die Farbe hat jeder Lüfter selbst.
+func editFans(owner walk.Form, c *Config, innerRow, outerRow *row, likeText string, afterSave func(), withApply bool) {
+	type portUI struct {
+		count      *walk.ComboBox
+		inner      *row
+		outer      *row
+		innerCells [4]*colorCell
+		outerCells [4]*colorCell
+		labels     [4]*walk.Label
+	}
+	var dlg *walk.Dialog
+	var chk *walk.CheckBox
+	var hint *walk.Label
+	var ports [4]*portUI
+
+	// Lüfter die es an diesem Anschluss nicht gibt, werden grau
+	updateCount := func(p *portUI) {
+		if p.count == nil || p.labels[3] == nil {
+			return
+		}
+		n := p.count.CurrentIndex()
+		for f := 0; f < 4; f++ {
+			on := f < n
+			p.innerCells[f].setEnabled(on)
+			p.outerCells[f].setEnabled(on)
+			p.labels[f].SetEnabled(on)
+		}
+	}
+
+	var pages []TabPage
+	for i := range ports {
+		fp := c.Fans[i].clamp()
+		p := &portUI{
+			inner: &row{title: "Innen (Mitte)", s: fp.Inner, effects: effectNames},
+			outer: &row{title: "Außen (Rand)", s: fp.Outer, effects: effectNames},
+		}
+		for f := 0; f < 4; f++ {
+			p.innerCells[f] = &colorCell{c: fp.InnerColors[f]}
+			p.outerCells[f] = &colorCell{c: fp.OuterColors[f]}
+		}
+		ports[i] = p
+
+		ringGrid := []Widget{Label{}, Label{Text: "Effekt"}, Label{Text: "Helligkeit"}, Label{Text: "Tempo"}}
+		ringGrid = append(ringGrid, Label{Text: p.inner.title})
+		ringGrid = append(ringGrid, ringWidgets(p.inner)...)
+		ringGrid = append(ringGrid, Label{Text: p.outer.title})
+		ringGrid = append(ringGrid, ringWidgets(p.outer)...)
+
+		// Die letzte Spalte nimmt den freien Platz, damit die Farbknöpfe nicht breit gezogen werden
+		fanGrid := []Widget{Label{}, Label{Text: "Farbe innen"}, Label{Text: "Farbe außen"}, HSpacer{}}
+		for f := 0; f < 4; f++ {
+			fanGrid = append(fanGrid,
+				Label{AssignTo: &p.labels[f], Text: fmt.Sprintf("Lüfter %d", f+1)},
+				p.innerCells[f].widgets(),
+				p.outerCells[f].widgets(),
+				HSpacer{},
+			)
+		}
+
+		pages = append(pages, TabPage{
+			Title:  fmt.Sprintf("Anschluss %d", i+1),
+			Layout: VBox{},
+			Children: []Widget{
+				Composite{
+					Layout: HBox{MarginsZero: true},
+					Children: []Widget{
+						Label{Text: "Lüfter an diesem Anschluss:"},
+						ComboBox{
+							AssignTo:              &p.count,
+							Model:                 []string{"0", "1", "2", "3", "4"},
+							MinSize:               Size{Width: 60},
+							OnCurrentIndexChanged: func() { updateCount(p) },
+						},
+						HSpacer{},
+					},
+				},
+				Composite{Layout: Grid{Columns: 4, Spacing: 8}, Children: ringGrid},
+				VSpacer{Size: 6},
+				Composite{Layout: Grid{Columns: 4, Spacing: 8}, Children: fanGrid},
+				Composite{
+					Layout: HBox{MarginsZero: true},
+					Children: []Widget{
+						PushButton{Text: "Alle Lüfter wie Lüfter 1", MinSize: Size{Width: 160}, OnClicked: func() {
+							for f := 1; f < 4; f++ {
+								p.innerCells[f].c = p.innerCells[0].c
+								p.outerCells[f].c = p.outerCells[0].c
+								p.innerCells[f].paint()
+								p.outerCells[f].paint()
+							}
+						}},
+						HSpacer{},
+					},
+				},
+				VSpacer{},
+			},
+		})
+	}
+
+	save := func() {
+		for i, p := range ports {
+			p.inner.readUI()
+			p.outer.readUI()
+			fp := FanPort{Count: p.count.CurrentIndex(), Inner: p.inner.s, Outer: p.outer.s}
+			for f := 0; f < 4; f++ {
+				fp.InnerColors[f] = p.innerCells[f].c
+				fp.OuterColors[f] = p.outerCells[f].c
+			}
+			c.Fans[i] = fp.clamp()
+		}
+		c.FanEinzeln = chk.Checked()
+		if afterSave != nil {
+			afterSave()
+		}
+	}
+	likeMain := func() {
+		innerRow.readUI()
+		outerRow.readUI()
+		for _, p := range ports {
+			p.inner.s = innerRow.s
+			p.outer.s = outerRow.s
+			p.inner.writeUI()
+			p.outer.writeUI()
+			for f := 0; f < 4; f++ {
+				p.innerCells[f].c = RGB{innerRow.s.R, innerRow.s.G, innerRow.s.B}
+				p.outerCells[f].c = RGB{outerRow.s.R, outerRow.s.G, outerRow.s.B}
+				p.innerCells[f].paint()
+				p.outerCells[f].paint()
+			}
+		}
+	}
+	apply := func() {
+		save()
+		if !found.Has(DevFanIn) {
+			hint.SetText("Lüfter Hub nicht gefunden")
+			return
+		}
+		hint.SetText("wird gesetzt ...")
+		cc := *c
+		f := found
+		go func() {
+			applyMu.Lock()
+			err := Apply(DevFanIn, f, &cc)
+			applyMu.Unlock()
+			res := "ok"
+			if err != nil {
+				res = "Fehler: " + err.Error()
+			}
+			logf("Lüfter einzeln: %v", res)
+			dlg.Synchronize(func() {
+				if err != nil {
+					hint.SetText("Fehler: " + err.Error())
+				} else {
+					hint.SetText("Fertig")
+				}
+			})
+		}()
+	}
+
+	buttons := []Widget{
+		Label{AssignTo: &hint},
+		HSpacer{},
+		PushButton{Text: likeText, MinSize: Size{Width: 130}, OnClicked: likeMain},
+	}
+	if withApply {
+		buttons = append(buttons, PushButton{Text: "Anwenden", OnClicked: func() {
+			chk.SetChecked(true)
+			apply()
+		}})
+	}
+	buttons = append(buttons, PushButton{Text: "Schließen", OnClicked: func() {
+		dlg.Accept()
+	}})
+
+	err := Dialog{
+		AssignTo: &dlg,
+		Title:    "Lüfter einzeln",
+		MinSize:  Size{Width: 640, Height: 480},
+		Layout:   VBox{},
+		Children: []Widget{
+			CheckBox{
+				AssignTo: &chk,
+				Text:     "Lüfter einzeln einstellen (sonst gelten die Zeilen Lüfter innen und Lüfter außen)",
+				Checked:  c.FanEinzeln,
+			},
+			Label{Text: "Die Lüfter hängen in einer Reihe an den Anschlüssen vom Lian Li Hub. Den Effekt gibt es nur für den ganzen Anschluss."},
+			Label{Text: "Die Farbe kann jeder Lüfter selbst haben (bei Statisch und Atmen). Innen ist die Mitte vom Lüfter, außen der Rand."},
+			TabWidget{Pages: pages},
+			Composite{
+				Layout:   HBox{MarginsZero: true},
+				Children: buttons,
+			},
+		},
+	}.Create(owner)
+	if err != nil {
+		walk.MsgBox(owner, "RGB Steuerung", "Dialog Fehler: "+err.Error(), walk.MsgBoxIconError)
+		return
+	}
+	for i, p := range ports {
+		p.inner.owner = dlg
+		p.outer.owner = dlg
+		p.inner.writeUI()
+		p.outer.writeUI()
+		for f := 0; f < 4; f++ {
+			p.innerCells[f].owner = dlg
+			p.outerCells[f].owner = dlg
+			p.innerCells[f].paint()
+			p.outerCells[f].paint()
+		}
+		p.count.SetCurrentIndex(c.Fans[i].clamp().Count)
+		updateCount(p)
+	}
+	// Auch beim Schliessen ueber das X speichern
+	dlg.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
+		save()
+	})
+	dlg.Run()
+}
+
 // showCreatePreset ist das Fenster "Neues Preset erstellen". Man stellt alles ein und
 // speichert es unter einem Namen. Die Farben am PC aendern sich dabei nicht.
 func showCreatePreset() {
@@ -677,6 +1001,7 @@ func showCreatePreset() {
 	var nameEdit *walk.LineEdit
 	var hint *walk.Label
 	var stripsBtn *walk.PushButton
+	var fansBtn *walk.PushButton
 
 	tmpl := &row{title: "Vorlage für alle", s: draft.All, effects: effectNames}
 	var rows [DevCount]*row
@@ -694,6 +1019,12 @@ func showCreatePreset() {
 		}
 		return "Streifen ..."
 	}
+	fansText := func() string {
+		if draft.FanEinzeln {
+			return "Lüfter: einzeln"
+		}
+		return "Lüfter einzeln ..."
+	}
 	allFromTemplate := func() {
 		tmpl.readUI()
 		draft.All = tmpl.s
@@ -706,6 +1037,13 @@ func showCreatePreset() {
 		}
 		draft.StrimerEinzeln = false
 		stripsBtn.SetText(stripsText())
+		fansFromTemplate(&draft, tmpl.s)
+		fansBtn.SetText(fansText())
+	}
+	editPresetFans := func() {
+		editFans(dlg, &draft, rows[DevFanIn], rows[DevFanOut], "Alle wie Lüfter Zeilen", func() {
+			fansBtn.SetText(fansText())
+		}, false)
 	}
 	editPresetStrips := func() {
 		editStrips(dlg, &draft, rows[DevStrimer], "Alle wie Strimer Zeile", func() {
@@ -766,6 +1104,8 @@ func showCreatePreset() {
 		grid = append(grid, settingWidgets(r)...)
 		if i == DevStrimer {
 			grid = append(grid, PushButton{AssignTo: &stripsBtn, Text: stripsText(), MinSize: Size{Width: 120}, OnClicked: editPresetStrips})
+		} else if i == DevFanIn {
+			grid = append(grid, PushButton{AssignTo: &fansBtn, Text: fansText(), MinSize: Size{Width: 120}, OnClicked: editPresetFans})
 		} else {
 			grid = append(grid, Label{})
 		}
@@ -925,6 +1265,8 @@ func loadPreset(apply bool) {
 	cfg.Devices = c.Devices
 	cfg.Strimer = c.Strimer
 	cfg.StrimerEinzeln = c.StrimerEinzeln
+	keepCounts(&cfg.Fans, c.Fans, cfg.Fans)
+	cfg.FanEinzeln = c.FanEinzeln
 
 	allRow.s = cfg.All
 	allRow.writeUI()
@@ -1096,6 +1438,9 @@ func runGUI() {
 		var extra Widget
 		if i == DevStrimer {
 			extra = PushButton{AssignTo: &stripBtn, Text: "Einzeln ...", MinSize: Size{Width: 90}, OnClicked: showStrimerDialog}
+		}
+		if i == DevFanIn {
+			extra = PushButton{AssignTo: &fanBtn, Text: "Einzeln ...", MinSize: Size{Width: 90}, OnClicked: showFanDialog}
 		}
 		grid = append(grid, rowWidgets(devRows[i], "Anwenden", func() { applyDevices(i) }, extra)...)
 	}
