@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const version = "2.2"
+const version = "2.3"
 
 var (
 	mw           *walk.MainWindow
@@ -1474,6 +1474,7 @@ func runGUI() {
 						},
 					},
 					presetsPage(),
+					claudePage(),
 				},
 			},
 			Composite{
@@ -1530,6 +1531,8 @@ func runGUI() {
 	updateStripBtn()
 	refreshPresetList()
 	refreshDetection()
+	updateKeyStatus()
+	newChat()
 
 	mw.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
 		saveFromUI()

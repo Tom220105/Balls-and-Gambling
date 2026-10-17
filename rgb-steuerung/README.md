@@ -1,4 +1,4 @@
-# RGB Steuerung (Version 2.2)
+# RGB Steuerung (Version 2.3)
 
 Kleines Windows Tool, mit dem man die RGB Beleuchtung im PC einstellt:
 Mainboard (ASUS Aura), Lian Li Lüfter, Strimer Kabel, Galahad II Pumpe,
@@ -12,6 +12,30 @@ mit dem Knopf "PawnIO installieren (für RAM)" installieren.
 
 Wichtig: L-Connect, Armoury Crate, SignalRGB und OpenRGB müssen komplett
 geschlossen sein, sonst überschreiben sie die Farben wieder.
+
+## Neu in Version 2.3: Claude Modus
+
+Im neuen Reiter "Claude" kann man mit Claude chatten. Claude kann dabei die
+Farben selbst ändern, zum Beispiel "mach alles lila", "Lüfter wie ein
+Sonnenuntergang" oder "etwas Gemütliches für den Abend". Claude kann auch die
+Strimer Streifen und die Lüfter einzeln einstellen und Presets laden oder
+speichern.
+
+So geht es:
+
+1. Auf console.anthropic.com ein Konto machen und einen API Schlüssel erstellen.
+   Die Nutzung kostet etwas Geld, abgerechnet wird über das Anthropic Konto.
+2. Den Schlüssel oben im Reiter "Claude" eintragen und auf "Speichern" drücken.
+   Er wird mit Windows verschlüsselt gespeichert und nur für deinen Windows
+   Benutzer lesbar.
+3. Unten eine Nachricht schreiben und Enter drücken.
+
+Ist "Farben sofort am PC anwenden" an, schickt die App die Änderungen gleich
+an die Geräte. Den RAM schickt sie nie automatisch, weil Windows dafür jedes Mal
+nach Administrator Rechten fragt. Dafür auf "Anwenden" beim RAM drücken.
+
+Die App benutzt das Modell Claude Opus 5.5. Falls Claude eine Anfrage ablehnt,
+versucht es der Server automatisch mit einem anderen Claude Modell.
 
 ## Neu in Version 2.2
 
