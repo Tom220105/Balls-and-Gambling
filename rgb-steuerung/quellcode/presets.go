@@ -55,13 +55,43 @@ func builtinPresets() map[string]Config {
 	charge := all(white)
 	charge.Devices[DevStrimer] = Setting{Effect: EffChargeBack, R: 255, G: 255, B: 255, Brightness: 4, Speed: 2}
 
+	// Satt und glücklich: so fühlt es sich an, wenn man genau das isst, worauf man richtig Bock hatte.
+	// Warmes Gold und Orange wie frisches Essen, ein bisschen Rosa für das Glücksgefühl.
+	// Lüfter und Pumpe atmen langsam und zufrieden, der Strimer lädt sich auf wie ein Bauch der voll wird.
+	set := func(effect int, c RGB) Setting {
+		return Setting{Effect: effect, R: c[0], G: c[1], B: c[2], Brightness: 4, Speed: 1}
+	}
+	happy := all(set(EffStatic, RGB{255, 150, 30}))
+	happy.Devices[DevAura] = set(EffStatic, RGB{255, 120, 20})
+	happy.Devices[DevFanIn] = set(EffBreathing, RGB{255, 170, 40})
+	happy.Devices[DevFanOut] = set(EffStatic, RGB{255, 90, 70})
+	happy.Devices[DevStrimer] = set(EffChargeBack, RGB{255, 140, 30})
+	happy.Devices[DevPump] = set(EffBreathing, RGB{255, 150, 30})
+	happy.Devices[DevGPU] = set(EffStatic, RGB{255, 110, 25})
+	happy.Devices[DevRAM] = set(EffStatic, RGB{255, 170, 50})
+	// Strimer: von Honig Gelb über Orange bis zu einem warmen Rosa
+	happyStrips := [6]RGB{{255, 200, 60}, {255, 170, 45}, {255, 140, 35}, {255, 115, 40}, {255, 95, 60}, {255, 80, 90}}
+	happy.StrimerEinzeln = true
+	for i := range happy.Strimer {
+		happy.Strimer[i] = set(EffChargeBack, happyStrips[i%6])
+	}
+	// Lüfter: innen goldener Verlauf, außen ein warmer Rand der ins Rosa geht
+	happy.FanEinzeln = true
+	for i := range happy.Fans {
+		fp := fanPortFrom(happy.Devices[DevFanIn], happy.Devices[DevFanOut])
+		fp.InnerColors = [4]RGB{{255, 190, 60}, {255, 165, 45}, {255, 140, 35}, {255, 115, 40}}
+		fp.OuterColors = [4]RGB{{255, 120, 60}, {255, 100, 70}, {255, 90, 85}, {255, 80, 100}}
+		happy.Fans[i] = fp
+	}
+
 	return map[string]Config{
-		"Alles Weiß":        all(white),
-		"Valorant Rot":      all(red),
-		"Regenbogen":        all(rainbow),
-		"Alles aus":         all(off),
-		"Weiß mit Aufladen": charge,
-		"Sonnenuntergang":   sun,
+		"Alles Weiß":         all(white),
+		"Valorant Rot":       all(red),
+		"Regenbogen":         all(rainbow),
+		"Alles aus":          all(off),
+		"Weiß mit Aufladen":  charge,
+		"Sonnenuntergang":    sun,
+		"Satt und glücklich": happy,
 	}
 }
 

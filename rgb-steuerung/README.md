@@ -1,4 +1,4 @@
-# RGB Steuerung (Version 2.1)
+# RGB Steuerung (Version 2.2)
 
 Kleines Windows Tool, mit dem man die RGB Beleuchtung im PC einstellt:
 Mainboard (ASUS Aura), Lian Li Lüfter, Strimer Kabel, Galahad II Pumpe,
@@ -12,6 +12,14 @@ mit dem Knopf "PawnIO installieren (für RAM)" installieren.
 
 Wichtig: L-Connect, Armoury Crate, SignalRGB und OpenRGB müssen komplett
 geschlossen sein, sonst überschreiben sie die Farben wieder.
+
+## Neu in Version 2.2
+
+Neues eingebautes Preset "Satt und glücklich". Es zeigt das Gefühl, wenn man
+genau das isst, worauf man richtig Bock hatte: warmes Gold und Orange wie
+frisches Essen und ein bisschen Rosa für das Glücksgefühl. Die Lüfter und die
+Pumpe atmen langsam und zufrieden, und der Strimer lädt sich langsam auf wie ein
+Bauch, der voll wird.
 
 ## Neu in Version 2.1
 

@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const version = "2.1"
+const version = "2.2"
 
 var (
 	mw           *walk.MainWindow
@@ -1206,7 +1206,7 @@ func presetsPage() TabPage {
 					HSpacer{},
 				},
 			},
-			Label{Text: "Die eingebauten Presets (Alles Weiß, Valorant Rot, Regenbogen, Alles aus, Weiß mit Aufladen, Sonnenuntergang) kann man nicht löschen, aber mit eigenem Namen überschreiben."},
+			Label{Text: "Die eingebauten Presets (Alles Weiß, Valorant Rot, Regenbogen, Alles aus, Weiß mit Aufladen, Sonnenuntergang, Satt und glücklich) kann man nicht löschen, aber überschreiben."},
 		},
 	}
 }
